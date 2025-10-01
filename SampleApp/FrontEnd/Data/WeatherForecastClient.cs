@@ -13,4 +13,10 @@ public class WeatherForecastClient
 
     public async Task<WeatherForecast[]> GetForecastAsync(DateTime? startDate)
         => await _httpClient.GetFromJsonAsync<WeatherForecast[]>($"WeatherForecast?startDate={startDate}") ?? [];
+    
+    public async Task<WeatherForecast[]> GetForecastByLocationAsync(string location)
+        => await _httpClient.GetFromJsonAsync<WeatherForecast[]>($"WeatherForecast/location/{location}") ?? [];
+    
+    public async Task<string[]> GetLocationsAsync()
+        => await _httpClient.GetFromJsonAsync<string[]>("locations") ?? [];
 }

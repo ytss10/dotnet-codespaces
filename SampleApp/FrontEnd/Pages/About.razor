@@ -1,0 +1,60 @@
+@page "/about"
+
+<PageTitle>About - Weather Forecast</PageTitle>
+
+<div class="container mt-4">
+    <h1>About Weather Forecast Application</h1>
+    
+    <div class="card mt-4">
+        <div class="card-body">
+            <h5 class="card-title">Overview</h5>
+            <p class="card-text">
+                This is a modern weather forecast application built with .NET 9 and Blazor Server.
+                The application demonstrates the power of server-side Blazor for building interactive web applications.
+            </p>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-body">
+            <h5 class="card-title">Features</h5>
+            <ul>
+                <li><strong>Location-based Forecasts:</strong> Filter weather data by different locations around the world</li>
+                <li><strong>Temperature Unit Toggle:</strong> Switch between Celsius and Fahrenheit</li>
+                <li><strong>Detailed Weather Information:</strong> View humidity, wind speed, and atmospheric pressure</li>
+                <li><strong>Weather Statistics:</strong> See average, maximum, and minimum temperatures at a glance</li>
+                <li><strong>Interactive UI:</strong> Modern, responsive design with real-time updates</li>
+                <li><strong>Color-coded Summaries:</strong> Visual indicators for different weather conditions</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-body">
+            <h5 class="card-title">Technology Stack</h5>
+            <ul>
+                <li><strong>Frontend:</strong> Blazor Server with Bootstrap 5</li>
+                <li><strong>Backend:</strong> ASP.NET Core Web API with .NET 9</li>
+                <li><strong>API Documentation:</strong> OpenAPI with Scalar</li>
+                <li><strong>Development:</strong> GitHub Codespaces</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-body">
+            <h5 class="card-title">API Endpoints</h5>
+            <ul>
+                <li><code>GET /weatherforecast</code> - Get weather forecast for all locations</li>
+                <li><code>GET /weatherforecast/location/{location}</code> - Get weather forecast for specific location</li>
+                <li><code>GET /locations</code> - Get list of available locations</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="alert alert-info mt-4" role="alert">
+        <h5 class="alert-heading">Note</h5>
+        <p>This application uses simulated weather data for demonstration purposes. 
+           In a production environment, you would integrate with a real weather API service.</p>
+    </div>
+</div>
