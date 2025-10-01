@@ -1,16 +1,17 @@
 @page "/about"
 
-<PageTitle>About - Weather Forecast</PageTitle>
+<PageTitle>About - Orchestration Platform</PageTitle>
 
 <div class="container mt-4">
-    <h1>About Weather Forecast Application</h1>
+    <h1>About Orchestration Control Platform</h1>
     
     <div class="card mt-4">
         <div class="card-body">
             <h5 class="card-title">Overview</h5>
             <p class="card-text">
-                This is a modern weather forecast application built with .NET 9 and Blazor Server.
-                The application demonstrates the power of server-side Blazor for building interactive web applications.
+                This is a modern distributed orchestration platform built with .NET 9 and Blazor Server.
+                The application demonstrates real-time monitoring, session management, and distributed processing
+                capabilities inspired by advanced orchestration systems.
             </p>
         </div>
     </div>
@@ -19,23 +20,26 @@
         <div class="card-body">
             <h5 class="card-title">Features</h5>
             <ul>
-                <li><strong>Location-based Forecasts:</strong> Filter weather data by different locations around the world</li>
-                <li><strong>Temperature Unit Toggle:</strong> Switch between Celsius and Fahrenheit</li>
-                <li><strong>Detailed Weather Information:</strong> View humidity, wind speed, and atmospheric pressure</li>
-                <li><strong>Weather Statistics:</strong> See average, maximum, and minimum temperatures at a glance</li>
-                <li><strong>Interactive UI:</strong> Modern, responsive design with real-time updates</li>
-                <li><strong>Color-coded Summaries:</strong> Visual indicators for different weather conditions</li>
+                <li><strong>Session Management:</strong> Create and monitor multiple processing sessions</li>
+                <li><strong>Real-time Monitoring:</strong> Live updates of session metrics and worker status</li>
+                <li><strong>Worker Distribution:</strong> Track distributed workers across sessions</li>
+                <li><strong>Performance Metrics:</strong> Monitor CPU usage, memory, and operation counts</li>
+                <li><strong>Success Rate Tracking:</strong> Visual indicators for operation success rates</li>
+                <li><strong>Auto-refresh Dashboard:</strong> Real-time data updates every 5 seconds</li>
+                <li><strong>Session Analytics:</strong> Comprehensive statistics across all sessions</li>
+                <li><strong>Resource Monitoring:</strong> Track system resource utilization</li>
             </ul>
         </div>
     </div>
 
     <div class="card mt-4">
         <div class="card-body">
-            <h5 class="card-title">Technology Stack</h5>
+            <h5 class="card-title">Architecture</h5>
             <ul>
-                <li><strong>Frontend:</strong> Blazor Server with Bootstrap 5</li>
+                <li><strong>Frontend:</strong> Blazor Server with Bootstrap 5 and real-time updates</li>
                 <li><strong>Backend:</strong> ASP.NET Core Web API with .NET 9</li>
                 <li><strong>API Documentation:</strong> OpenAPI with Scalar</li>
+                <li><strong>Session Storage:</strong> In-memory concurrent dictionary (production-ready storage recommended)</li>
                 <li><strong>Development:</strong> GitHub Codespaces</li>
             </ul>
         </div>
@@ -45,16 +49,38 @@
         <div class="card-body">
             <h5 class="card-title">API Endpoints</h5>
             <ul>
-                <li><code>GET /weatherforecast</code> - Get weather forecast for all locations</li>
-                <li><code>GET /weatherforecast/location/{location}</code> - Get weather forecast for specific location</li>
-                <li><code>GET /locations</code> - Get list of available locations</li>
+                <li><code>GET /api/sessions</code> - Get all orchestration sessions</li>
+                <li><code>GET /api/sessions/{id}</code> - Get specific session details</li>
+                <li><code>GET /api/sessions/{id}/workers</code> - Get workers for a session</li>
+                <li><code>POST /api/sessions</code> - Create a new session</li>
+                <li><code>POST /api/sessions/{id}/command</code> - Execute session commands</li>
+                <li><code>GET /api/statistics</code> - Get system-wide statistics</li>
+                <li><code>DELETE /api/sessions/{id}</code> - Delete a session</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-body">
+            <h5 class="card-title">Inspired By</h5>
+            <p class="card-text">
+                This platform is inspired by advanced orchestration systems that handle distributed processing,
+                real-time monitoring, and session management at scale. The architecture demonstrates concepts from:
+            </p>
+            <ul>
+                <li>Distributed session orchestration</li>
+                <li>Real-time metrics and monitoring</li>
+                <li>Worker pool management</li>
+                <li>Command and control interfaces</li>
+                <li>Live data streaming and updates</li>
             </ul>
         </div>
     </div>
 
     <div class="alert alert-info mt-4" role="alert">
         <h5 class="alert-heading">Note</h5>
-        <p>This application uses simulated weather data for demonstration purposes. 
-           In a production environment, you would integrate with a real weather API service.</p>
+        <p>This is a demonstration application showcasing orchestration platform concepts adapted for .NET/Blazor. 
+           In a production environment, you would integrate with actual distributed processing systems, 
+           persistent storage, and real worker management infrastructure.</p>
     </div>
 </div>
