@@ -531,6 +531,93 @@ CREATE INDEX idx_proxies_pool_country ON proxies(pool_id, country, active);
 CREATE INDEX idx_metrics_session_timestamp ON metrics(session_id, timestamp);
 
 -- ============================================================================
+-- Web Automation & Scraping Tables
+-- ============================================================================
+
+-- Automation tasks table: Configuration and state for automation tasks
+CREATE TABLE IF NOT EXISTS `automation_tasks` (
+  `id` VARCHAR(64) PRIMARY KEY,
+  `name` VARCHAR(255) NOT NULL,
+  `type` ENUM('scraping', 'automation', 'monitoring') DEFAULT 'scraping',
+  `urls` TEXT,
+  `selectors` TEXT,
+  `actions` TEXT,
+  `schedule` VARCHAR(100),
+  `proxy_config` TEXT,
+  `rate_limit` INT DEFAULT 100,
+  `max_retries` INT DEFAULT 3,
+  `retry_delay` INT DEFAULT 1000,
+  `concurrency` INT DEFAULT 5,
+  `timeout` INT DEFAULT 30000,
+  `priority` INT DEFAULT 5,
+  `status` ENUM('created', 'running', 'paused', 'stopped', 'completed', 'failed') DEFAULT 'created',
+  `requests_completed` INT DEFAULT 0,
+  `requests_failed` INT DEFAULT 0,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `started_at` TIMESTAMP NULL,
+  `stopped_at` TIMESTAMP NULL,
+  `last_run_at` TIMESTAMP NULL,
+  INDEX `idx_status` (`status`),
+  INDEX `idx_priority` (`priority`),
+  INDEX `idx_created` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Request queue table: Manage request queue with priority
+CREATE TABLE IF NOT EXISTS `request_queue` (
+  `id` VARCHAR(64) PRIMARY KEY,
+  `task_id` VARCHAR(64) NOT NULL,
+  `url` TEXT NOT NULL,
+  `proxy_config` TEXT,
+  `status` ENUM('queued', 'processing', 'completed', 'failed', 'retry_scheduled') DEFAULT 'queued',
+  `priority` INT DEFAULT 5,
+  `retry_count` INT DEFAULT 0,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `next_retry_at` TIMESTAMP NULL,
+  FOREIGN KEY (`task_id`) REFERENCES `automation_tasks`(`id`) ON DELETE CASCADE,
+  INDEX `idx_status` (`status`),
+  INDEX `idx_priority` (`priority`),
+  INDEX `idx_next_retry` (`next_retry_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Automation results table: Store scraped data and execution results
+CREATE TABLE IF NOT EXISTS `automation_results` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `task_id` VARCHAR(64) NOT NULL,
+  `url` TEXT,
+  `data` LONGTEXT,
+  `status` VARCHAR(20),
+  `status_code` INT,
+  `response_time` DECIMAL(10,2),
+  `proxy_used` VARCHAR(10),
+  `error_message` TEXT,
+  `screenshot_path` VARCHAR(255),
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`task_id`) REFERENCES `automation_tasks`(`id`) ON DELETE CASCADE,
+  INDEX `idx_task` (`task_id`),
+  INDEX `idx_status` (`status`),
+  INDEX `idx_created` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Scraping jobs table: Define scraping job configurations
+CREATE TABLE IF NOT EXISTS `scraping_jobs` (
+  `id` VARCHAR(64) PRIMARY KEY,
+  `name` VARCHAR(255) NOT NULL,
+  `description` TEXT,
+  `urls` TEXT,
+  `extraction_rules` TEXT,
+  `transformation_rules` TEXT,
+  `export_format` ENUM('json', 'csv', 'xml', 'mysql') DEFAULT 'json',
+  `schedule` VARCHAR(100),
+  `proxy_config` TEXT,
+  `status` VARCHAR(20) DEFAULT 'created',
+  `results_count` INT DEFAULT 0,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `last_run_at` TIMESTAMP NULL,
+  INDEX `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================================
 -- Initial sample data for testing
 -- ============================================================================
 

@@ -162,6 +162,55 @@ class APIRouter {
                 return $this->healthCheck();
             }
             
+            // Automation & Scraping Routes
+            if ($path === '/automation/tasks' && $this->method === 'POST') {
+                return $this->createAutomationTask();
+            }
+            
+            if ($path === '/automation/tasks' && $this->method === 'GET') {
+                return $this->getAutomationTasks();
+            }
+            
+            if (preg_match('#^/automation/tasks/([a-zA-Z0-9_-]+)$#', $path, $matches) && $this->method === 'GET') {
+                return $this->getAutomationTask($matches[1]);
+            }
+            
+            if (preg_match('#^/automation/tasks/([a-zA-Z0-9_-]+)$#', $path, $matches) && $this->method === 'PUT') {
+                return $this->updateAutomationTask($matches[1]);
+            }
+            
+            if (preg_match('#^/automation/tasks/([a-zA-Z0-9_-]+)$#', $path, $matches) && $this->method === 'DELETE') {
+                return $this->deleteAutomationTask($matches[1]);
+            }
+            
+            if (preg_match('#^/automation/tasks/([a-zA-Z0-9_-]+)/start$#', $path, $matches) && $this->method === 'POST') {
+                return $this->startAutomationTask($matches[1]);
+            }
+            
+            if (preg_match('#^/automation/tasks/([a-zA-Z0-9_-]+)/stop$#', $path, $matches) && $this->method === 'POST') {
+                return $this->stopAutomationTask($matches[1]);
+            }
+            
+            if (preg_match('#^/automation/tasks/([a-zA-Z0-9_-]+)/pause$#', $path, $matches) && $this->method === 'POST') {
+                return $this->pauseAutomationTask($matches[1]);
+            }
+            
+            if ($path === '/scraping/execute' && $this->method === 'POST') {
+                return $this->executeScraping();
+            }
+            
+            if ($path === '/scraping/jobs' && $this->method === 'GET') {
+                return $this->getScrapingJobs();
+            }
+            
+            if (preg_match('#^/scraping/jobs/([a-zA-Z0-9_-]+)$#', $path, $matches) && $this->method === 'GET') {
+                return $this->getScrapingJob($matches[1]);
+            }
+            
+            if (preg_match('#^/scraping/jobs/([a-zA-Z0-9_-]+)/results$#', $path, $matches) && $this->method === 'GET') {
+                return $this->getScrapingResults($matches[1]);
+            }
+            
             // Not found
             $this->sendResponse(['error' => 'Endpoint not found'], 404);
             
@@ -646,6 +695,253 @@ class APIRouter {
             'version' => '2.0.0',
             'engine' => 'CustomProxyEngine'
         ]);
+    }
+    
+    // ============================================================================
+    // Automation & Scraping API Methods
+    // ============================================================================
+    
+    private function createAutomationTask() {
+        require_once __DIR__ . '/../includes/web-automation-engine.php';
+        
+        try {
+            $db = DatabaseManager::getInstance();
+            $taskId = bin2hex(random_bytes(16));
+            
+            $name = $this->requestData['name'] ?? 'Untitled Task';
+            $type = $this->requestData['type'] ?? 'scraping';
+            $urls = isset($this->requestData['urls']) ? json_encode($this->requestData['urls']) : null;
+            $selectors = isset($this->requestData['selectors']) ? json_encode($this->requestData['selectors']) : null;
+            $actions = isset($this->requestData['actions']) ? json_encode($this->requestData['actions']) : null;
+            $proxyConfig = isset($this->requestData['proxy']) ? json_encode($this->requestData['proxy']) : null;
+            
+            $sql = "INSERT INTO automation_tasks (id, name, type, urls, selectors, actions, proxy_config, rate_limit, max_retries, concurrency, priority) 
+                    VALUES (:id, :name, :type, :urls, :selectors, :actions, :proxy_config, :rate_limit, :max_retries, :concurrency, :priority)";
+            
+            $stmt = $db->prepare($sql);
+            $stmt->execute([
+                ':id' => $taskId,
+                ':name' => $name,
+                ':type' => $type,
+                ':urls' => $urls,
+                ':selectors' => $selectors,
+                ':actions' => $actions,
+                ':proxy_config' => $proxyConfig,
+                ':rate_limit' => $this->requestData['rate_limit'] ?? 100,
+                ':max_retries' => $this->requestData['max_retries'] ?? 3,
+                ':concurrency' => $this->requestData['concurrency'] ?? 5,
+                ':priority' => $this->requestData['priority'] ?? 5
+            ]);
+            
+            $this->sendResponse([
+                'task_id' => $taskId,
+                'message' => 'Automation task created successfully'
+            ], 201);
+        } catch (Exception $e) {
+            $this->sendResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+    
+    private function getAutomationTasks() {
+        try {
+            $db = DatabaseManager::getInstance();
+            $sql = "SELECT * FROM automation_tasks ORDER BY created_at DESC LIMIT 100";
+            $stmt = $db->query($sql);
+            $tasks = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            $this->sendResponse([
+                'tasks' => $tasks,
+                'count' => count($tasks)
+            ]);
+        } catch (Exception $e) {
+            $this->sendResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+    
+    private function getAutomationTask($taskId) {
+        try {
+            $db = DatabaseManager::getInstance();
+            $sql = "SELECT * FROM automation_tasks WHERE id = :id";
+            $stmt = $db->prepare($sql);
+            $stmt->execute([':id' => $taskId]);
+            $task = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$task) {
+                $this->sendResponse(['error' => 'Task not found'], 404);
+                return;
+            }
+            
+            $this->sendResponse(['task' => $task]);
+        } catch (Exception $e) {
+            $this->sendResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+    
+    private function updateAutomationTask($taskId) {
+        try {
+            $db = DatabaseManager::getInstance();
+            
+            $updates = [];
+            $params = [':id' => $taskId];
+            
+            if (isset($this->requestData['name'])) {
+                $updates[] = "name = :name";
+                $params[':name'] = $this->requestData['name'];
+            }
+            if (isset($this->requestData['status'])) {
+                $updates[] = "status = :status";
+                $params[':status'] = $this->requestData['status'];
+            }
+            if (isset($this->requestData['priority'])) {
+                $updates[] = "priority = :priority";
+                $params[':priority'] = $this->requestData['priority'];
+            }
+            
+            if (empty($updates)) {
+                $this->sendResponse(['error' => 'No fields to update'], 400);
+                return;
+            }
+            
+            $sql = "UPDATE automation_tasks SET " . implode(', ', $updates) . " WHERE id = :id";
+            $stmt = $db->prepare($sql);
+            $stmt->execute($params);
+            
+            $this->sendResponse(['message' => 'Task updated successfully']);
+        } catch (Exception $e) {
+            $this->sendResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+    
+    private function deleteAutomationTask($taskId) {
+        try {
+            $db = DatabaseManager::getInstance();
+            $sql = "DELETE FROM automation_tasks WHERE id = :id";
+            $stmt = $db->prepare($sql);
+            $stmt->execute([':id' => $taskId]);
+            
+            $this->sendResponse(['message' => 'Task deleted successfully']);
+        } catch (Exception $e) {
+            $this->sendResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+    
+    private function startAutomationTask($taskId) {
+        try {
+            $db = DatabaseManager::getInstance();
+            $sql = "UPDATE automation_tasks SET status = 'running', started_at = NOW() WHERE id = :id";
+            $stmt = $db->prepare($sql);
+            $stmt->execute([':id' => $taskId]);
+            
+            $this->sendResponse(['message' => 'Task started successfully']);
+        } catch (Exception $e) {
+            $this->sendResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+    
+    private function stopAutomationTask($taskId) {
+        try {
+            $db = DatabaseManager::getInstance();
+            $sql = "UPDATE automation_tasks SET status = 'stopped', stopped_at = NOW() WHERE id = :id";
+            $stmt = $db->prepare($sql);
+            $stmt->execute([':id' => $taskId]);
+            
+            $this->sendResponse(['message' => 'Task stopped successfully']);
+        } catch (Exception $e) {
+            $this->sendResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+    
+    private function pauseAutomationTask($taskId) {
+        try {
+            $db = DatabaseManager::getInstance();
+            $sql = "UPDATE automation_tasks SET status = 'paused' WHERE id = :id";
+            $stmt = $db->prepare($sql);
+            $stmt->execute([':id' => $taskId]);
+            
+            $this->sendResponse(['message' => 'Task paused successfully']);
+        } catch (Exception $e) {
+            $this->sendResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+    
+    private function executeScraping() {
+        require_once __DIR__ . '/../includes/web-automation-engine.php';
+        
+        try {
+            $url = $this->requestData['url'] ?? '';
+            $selectors = $this->requestData['selectors'] ?? [];
+            $proxyConfig = $this->requestData['proxy'] ?? [];
+            
+            if (empty($url)) {
+                $this->sendResponse(['error' => 'URL is required'], 400);
+                return;
+            }
+            
+            $scraper = new WebAutomationEngine();
+            $result = $scraper->scrape($url, [
+                'selectors' => $selectors,
+                'proxy' => $proxyConfig
+            ]);
+            
+            $this->sendResponse([
+                'result' => $result,
+                'message' => 'Scraping executed successfully'
+            ]);
+        } catch (Exception $e) {
+            $this->sendResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+    
+    private function getScrapingJobs() {
+        try {
+            $db = DatabaseManager::getInstance();
+            $sql = "SELECT * FROM scraping_jobs ORDER BY created_at DESC LIMIT 100";
+            $stmt = $db->query($sql);
+            $jobs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            $this->sendResponse([
+                'jobs' => $jobs,
+                'count' => count($jobs)
+            ]);
+        } catch (Exception $e) {
+            $this->sendResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+    
+    private function getScrapingJob($jobId) {
+        try {
+            $db = DatabaseManager::getInstance();
+            $sql = "SELECT * FROM scraping_jobs WHERE id = :id";
+            $stmt = $db->prepare($sql);
+            $stmt->execute([':id' => $jobId]);
+            $job = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$job) {
+                $this->sendResponse(['error' => 'Job not found'], 404);
+                return;
+            }
+            
+            $this->sendResponse(['job' => $job]);
+        } catch (Exception $e) {
+            $this->sendResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+    
+    private function getScrapingResults($jobId) {
+        try {
+            $db = DatabaseManager::getInstance();
+            $sql = "SELECT * FROM automation_results WHERE task_id = :task_id ORDER BY created_at DESC LIMIT 100";
+            $stmt = $db->prepare($sql);
+            $stmt->execute([':task_id' => $jobId]);
+            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            $this->sendResponse([
+                'results' => $results,
+                'count' => count($results)
+            ]);
+        } catch (Exception $e) {
+            $this->sendResponse(['error' => $e->getMessage()], 500);
+        }
     }
     
     private function sendResponse($data, $code = 200) {
