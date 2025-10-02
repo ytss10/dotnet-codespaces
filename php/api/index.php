@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/database.php';
 require_once __DIR__ . '/../includes/orchestrator.php';
+require_once __DIR__ . '/../includes/proxy-manager.php';
 
 class APIRouter {
     private $orchestrator;
@@ -102,6 +103,34 @@ class APIRouter {
             
             if ($path === '/proxies' && $this->method === 'POST') {
                 return $this->createProxy();
+            }
+            
+            if (preg_match('#^/proxies/([a-f0-9-]+)/verify$#', $path, $matches) && $this->method === 'POST') {
+                return $this->verifyProxy($matches[1]);
+            }
+            
+            if (preg_match('#^/proxies/([a-f0-9-]+)/release$#', $path, $matches) && $this->method === 'POST') {
+                return $this->releaseProxy($matches[1]);
+            }
+            
+            if (preg_match('#^/proxies/([a-f0-9-]+)/config$#', $path, $matches) && $this->method === 'PUT') {
+                return $this->updateProxyConfig($matches[1]);
+            }
+            
+            if ($path === '/proxies/providers' && $this->method === 'GET') {
+                return $this->getProviderStats();
+            }
+            
+            if (preg_match('#^/proxy-pools/([^/]+)/providers$#', $path, $matches) && $this->method === 'PUT') {
+                return $this->configureProviders(urldecode($matches[1]));
+            }
+            
+            if (preg_match('#^/proxy-pools/([^/]+)/security$#', $path, $matches) && $this->method === 'PUT') {
+                return $this->configurePoolSecurity(urldecode($matches[1]));
+            }
+            
+            if (preg_match('#^/proxy-pools/([^/]+)/verify$#', $path, $matches) && $this->method === 'POST') {
+                return $this->bulkVerifyProxies(urldecode($matches[1]));
             }
             
             if ($path === '/health' && $this->method === 'GET') {
@@ -285,27 +314,89 @@ class APIRouter {
             }
         }
         
-        $proxyId = $db->uuid();
-        
-        $data = [
-            'id' => $proxyId,
-            'pool_id' => $this->requestData['pool_id'],
-            'host' => $this->requestData['host'],
-            'port' => $this->requestData['port'],
-            'protocol' => $this->requestData['protocol'] ?? 'http',
-            'username' => $this->requestData['username'] ?? null,
-            'password' => $this->requestData['password'] ?? null,
-            'country' => $this->requestData['country'] ?? null,
-            'region' => $this->requestData['region'] ?? null,
-            'city' => $this->requestData['city'] ?? null,
-            'latitude' => $this->requestData['latitude'] ?? null,
-            'longitude' => $this->requestData['longitude'] ?? null,
-            'active' => true
-        ];
-        
-        $db->insert('proxies', $data);
+        $proxyManager = new ProxyPoolManager();
+        $proxyId = $proxyManager->addProxy(
+            $this->requestData['pool_id'],
+            $this->requestData['host'],
+            $this->requestData['port'],
+            $this->requestData
+        );
         
         $this->sendResponse(['id' => $proxyId, 'success' => true], 201);
+    }
+    
+    private function verifyProxy($proxyId) {
+        $proxyManager = new ProxyPoolManager();
+        
+        try {
+            $result = $proxyManager->verifyProxy($proxyId);
+            $this->sendResponse($result);
+        } catch (Exception $e) {
+            $this->sendResponse(['error' => $e->getMessage()], 404);
+        }
+    }
+    
+    private function releaseProxy($proxyId) {
+        $proxyManager = new ProxyPoolManager();
+        $proxyManager->releaseProxy($proxyId);
+        $this->sendResponse(['success' => true, 'id' => $proxyId]);
+    }
+    
+    private function updateProxyConfig($proxyId) {
+        $proxyManager = new ProxyPoolManager();
+        
+        try {
+            $proxyManager->setProxyCustomConfig($proxyId, $this->requestData);
+            $this->sendResponse(['success' => true, 'id' => $proxyId]);
+        } catch (Exception $e) {
+            $this->sendResponse(['error' => $e->getMessage()], 400);
+        }
+    }
+    
+    private function getProviderStats() {
+        $proxyManager = new ProxyPoolManager();
+        $stats = $proxyManager->getProviderStatistics();
+        
+        $this->sendResponse([
+            'providers' => $stats,
+            'total' => count($stats)
+        ]);
+    }
+    
+    private function configureProviders($poolId) {
+        $proxyManager = new ProxyPoolManager();
+        
+        $allowedProviders = $this->requestData['allowed_providers'] ?? [];
+        $blockedProviders = $this->requestData['blocked_providers'] ?? [];
+        
+        try {
+            $proxyManager->configurePoolProviders($poolId, $allowedProviders, $blockedProviders);
+            $this->sendResponse(['success' => true, 'pool_id' => $poolId]);
+        } catch (Exception $e) {
+            $this->sendResponse(['error' => $e->getMessage()], 400);
+        }
+    }
+    
+    private function configurePoolSecurity($poolId) {
+        $proxyManager = new ProxyPoolManager();
+        
+        try {
+            $proxyManager->setPoolSecurityRequirements($poolId, $this->requestData);
+            $this->sendResponse(['success' => true, 'pool_id' => $poolId]);
+        } catch (Exception $e) {
+            $this->sendResponse(['error' => $e->getMessage()], 400);
+        }
+    }
+    
+    private function bulkVerifyProxies($poolId) {
+        $proxyManager = new ProxyPoolManager();
+        
+        try {
+            $result = $proxyManager->bulkVerifyProxies($poolId);
+            $this->sendResponse($result);
+        } catch (Exception $e) {
+            $this->sendResponse(['error' => $e->getMessage()], 400);
+        }
     }
     
     private function healthCheck() {

@@ -33,23 +33,33 @@ CREATE TABLE IF NOT EXISTS `sessions` (
   INDEX `idx_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Proxy pools table: Multi-country proxy management
+-- Proxy pools table: Multi-country proxy management with enhanced control
 CREATE TABLE IF NOT EXISTS `proxy_pools` (
   `id` VARCHAR(100) PRIMARY KEY,
   `pool_name` VARCHAR(255) NOT NULL,
   `regions` JSON,
   `countries` JSON,
-  `rotation_strategy` ENUM('round-robin', 'sticky', 'burst') DEFAULT 'round-robin',
+  `rotation_strategy` ENUM('round-robin', 'sticky', 'burst', 'intelligent', 'reputation-based') DEFAULT 'round-robin',
   `rotation_seconds` INT DEFAULT 60,
   `failover_pool_ids` JSON,
   `active` BOOLEAN DEFAULT TRUE,
   `total_proxies` INT DEFAULT 0,
+  `allowed_providers` JSON,
+  `blocked_providers` JSON,
+  `require_verification` BOOLEAN DEFAULT TRUE,
+  `min_reputation_score` DECIMAL(5,2) DEFAULT 30.00,
+  `require_dedicated` BOOLEAN DEFAULT FALSE,
+  `require_residential` BOOLEAN DEFAULT FALSE,
+  `min_anonymity_level` ENUM('transparent', 'anonymous', 'elite') DEFAULT 'anonymous',
+  `enable_connection_isolation` BOOLEAN DEFAULT FALSE,
+  `max_connections_per_proxy` INT DEFAULT 10,
+  `auto_verify_interval_hours` INT DEFAULT 24,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX `idx_active` (`active`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Proxies table: Individual proxy entries with geo-routing
+-- Proxies table: Individual proxy entries with geo-routing and enhanced security
 CREATE TABLE IF NOT EXISTS `proxies` (
   `id` VARCHAR(36) PRIMARY KEY,
   `pool_id` VARCHAR(100) NOT NULL,
@@ -67,13 +77,32 @@ CREATE TABLE IF NOT EXISTS `proxies` (
   `success_count` INT DEFAULT 0,
   `failure_count` INT DEFAULT 0,
   `last_used_at` TIMESTAMP NULL,
+  `provider` VARCHAR(255),
+  `is_dedicated` BOOLEAN DEFAULT FALSE,
+  `is_residential` BOOLEAN DEFAULT FALSE,
+  `anonymity_level` ENUM('transparent', 'anonymous', 'elite') DEFAULT 'anonymous',
+  `reputation_score` DECIMAL(5,2) DEFAULT 50.00,
+  `max_concurrent_connections` INT DEFAULT 10,
+  `current_connections` INT DEFAULT 0,
+  `allowed_domains` TEXT,
+  `blocked_domains` TEXT,
+  `custom_headers` JSON,
+  `isolation_enabled` BOOLEAN DEFAULT FALSE,
+  `verification_status` ENUM('pending', 'verified', 'failed', 'expired') DEFAULT 'pending',
+  `last_verification_at` TIMESTAMP NULL,
+  `response_time_ms` INT DEFAULT 0,
+  `bandwidth_limit_mbps` INT DEFAULT 0,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`pool_id`) REFERENCES `proxy_pools`(`id`) ON DELETE CASCADE,
   INDEX `idx_pool_id` (`pool_id`),
   INDEX `idx_country` (`country`),
   INDEX `idx_active` (`active`),
-  INDEX `idx_region` (`region`)
+  INDEX `idx_region` (`region`),
+  INDEX `idx_provider` (`provider`),
+  INDEX `idx_verification_status` (`verification_status`),
+  INDEX `idx_reputation` (`reputation_score`),
+  INDEX `idx_anonymity` (`anonymity_level`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Replicas table: Individual replica instances
