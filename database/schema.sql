@@ -33,6 +33,138 @@ CREATE TABLE IF NOT EXISTS `sessions` (
   INDEX `idx_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Custom proxy servers table: Internal proxy infrastructure
+CREATE TABLE IF NOT EXISTS `custom_proxy_servers` (
+  `id` VARCHAR(36) PRIMARY KEY,
+  `server_ip` VARCHAR(45) NOT NULL,
+  `port` INT NOT NULL,
+  `protocol` ENUM('http', 'https', 'socks4', 'socks5') DEFAULT 'socks5',
+  `region` VARCHAR(100),
+  `country` VARCHAR(2),
+  `current_connections` INT DEFAULT 0,
+  `max_connections` INT DEFAULT 1000,
+  `avg_response_time` INT DEFAULT 0,
+  `uptime_percentage` DECIMAL(5,2) DEFAULT 99.00,
+  `priority` INT DEFAULT 100,
+  `active` BOOLEAN DEFAULT TRUE,
+  `server_type` ENUM('entry', 'intermediate', 'exit', 'bridge') DEFAULT 'exit',
+  `encryption_support` JSON,
+  `tunnel_protocols` JSON,
+  `bandwidth_capacity_mbps` INT DEFAULT 1000,
+  `current_bandwidth_usage` DECIMAL(10,2) DEFAULT 0,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX `idx_active` (`active`),
+  INDEX `idx_region` (`region`),
+  INDEX `idx_priority` (`priority`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Dynamic IP pool table: Managed IP addresses for rotation
+CREATE TABLE IF NOT EXISTS `dynamic_ip_pool` (
+  `id` VARCHAR(36) PRIMARY KEY,
+  `ip_address` VARCHAR(45) NOT NULL UNIQUE,
+  `subnet` VARCHAR(45),
+  `gateway` VARCHAR(45),
+  `country` VARCHAR(2),
+  `region` VARCHAR(100),
+  `city` VARCHAR(255),
+  `isp` VARCHAR(255),
+  `asn` VARCHAR(20),
+  `reputation_score` DECIMAL(5,2) DEFAULT 100.00,
+  `available` BOOLEAN DEFAULT TRUE,
+  `last_used` TIMESTAMP NULL,
+  `usage_count` INT DEFAULT 0,
+  `success_count` INT DEFAULT 0,
+  `failure_count` INT DEFAULT 0,
+  `blacklist_status` ENUM('clean', 'flagged', 'blacklisted') DEFAULT 'clean',
+  `allocation_type` ENUM('static', 'dynamic', 'rotating') DEFAULT 'dynamic',
+  `lease_expires_at` TIMESTAMP NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX `idx_available` (`available`),
+  INDEX `idx_country` (`country`),
+  INDEX `idx_reputation` (`reputation_score`),
+  INDEX `idx_last_used` (`last_used`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Proxy connections table: Active tunnel connections
+CREATE TABLE IF NOT EXISTS `proxy_connections` (
+  `id` VARCHAR(100) PRIMARY KEY,
+  `target_url` TEXT,
+  `route_id` VARCHAR(100),
+  `source_ip` VARCHAR(45),
+  `protocol` VARCHAR(20),
+  `status` ENUM('establishing', 'active', 'idle', 'closed', 'failed') DEFAULT 'establishing',
+  `established_at` TIMESTAMP NULL,
+  `closed_at` TIMESTAMP NULL,
+  `last_activity` TIMESTAMP NULL,
+  `requests_count` INT DEFAULT 0,
+  `bytes_sent` BIGINT DEFAULT 0,
+  `bytes_received` BIGINT DEFAULT 0,
+  `avg_latency_ms` INT DEFAULT 0,
+  `config` JSON,
+  `error_message` TEXT,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX `idx_status` (`status`),
+  INDEX `idx_source_ip` (`source_ip`),
+  INDEX `idx_established_at` (`established_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Proxy hop logs table: Track multi-hop tunnel routing
+CREATE TABLE IF NOT EXISTS `proxy_hop_logs` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `connection_id` VARCHAR(100) NOT NULL,
+  `hop_type` ENUM('entry', 'intermediate', 'exit') NOT NULL,
+  `hop_ip` VARCHAR(45) NOT NULL,
+  `hop_port` INT NOT NULL,
+  `protocol` VARCHAR(20),
+  `encryption` VARCHAR(50),
+  `latency_ms` INT DEFAULT 0,
+  `bytes_transferred` BIGINT DEFAULT 0,
+  `established_at` TIMESTAMP NULL,
+  `closed_at` TIMESTAMP NULL,
+  INDEX `idx_connection_id` (`connection_id`),
+  INDEX `idx_hop_ip` (`hop_ip`),
+  INDEX `idx_established_at` (`established_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Tunnel routes table: Store routing configurations
+CREATE TABLE IF NOT EXISTS `tunnel_routes` (
+  `id` VARCHAR(100) PRIMARY KEY,
+  `source_ip` VARCHAR(45),
+  `destination_url` TEXT,
+  `hop_count` INT DEFAULT 3,
+  `encryption_layers` INT DEFAULT 2,
+  `routing_algorithm` VARCHAR(50) DEFAULT 'intelligent',
+  `performance_score` DECIMAL(5,2) DEFAULT 0,
+  `success_rate` DECIMAL(5,2) DEFAULT 0,
+  `avg_response_time` INT DEFAULT 0,
+  `usage_count` INT DEFAULT 0,
+  `last_used` TIMESTAMP NULL,
+  `route_config` JSON,
+  `active` BOOLEAN DEFAULT TRUE,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX `idx_source_ip` (`source_ip`),
+  INDEX `idx_active` (`active`),
+  INDEX `idx_performance` (`performance_score`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- IP rotation history table: Track IP rotation events
+CREATE TABLE IF NOT EXISTS `ip_rotation_history` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `connection_id` VARCHAR(100) NOT NULL,
+  `old_ip` VARCHAR(45),
+  `new_ip` VARCHAR(45),
+  `rotation_reason` ENUM('scheduled', 'detection', 'failure', 'manual') DEFAULT 'scheduled',
+  `rotation_strategy` VARCHAR(50),
+  `success` BOOLEAN DEFAULT TRUE,
+  `rotated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX `idx_connection_id` (`connection_id`),
+  INDEX `idx_rotated_at` (`rotated_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Proxy pools table: Multi-country proxy management with enhanced control
 CREATE TABLE IF NOT EXISTS `proxy_pools` (
   `id` VARCHAR(100) PRIMARY KEY,
@@ -59,51 +191,9 @@ CREATE TABLE IF NOT EXISTS `proxy_pools` (
   INDEX `idx_active` (`active`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Proxies table: Individual proxy entries with geo-routing and enhanced security
-CREATE TABLE IF NOT EXISTS `proxies` (
-  `id` VARCHAR(36) PRIMARY KEY,
-  `pool_id` VARCHAR(100) NOT NULL,
-  `host` VARCHAR(255) NOT NULL,
-  `port` INT NOT NULL,
-  `protocol` ENUM('http', 'https', 'socks4', 'socks5') DEFAULT 'http',
-  `username` VARCHAR(255),
-  `password` VARCHAR(255),
-  `country` VARCHAR(2),
-  `region` VARCHAR(100),
-  `city` VARCHAR(255),
-  `latitude` DECIMAL(10, 8),
-  `longitude` DECIMAL(11, 8),
-  `active` BOOLEAN DEFAULT TRUE,
-  `success_count` INT DEFAULT 0,
-  `failure_count` INT DEFAULT 0,
-  `last_used_at` TIMESTAMP NULL,
-  `provider` VARCHAR(255),
-  `is_dedicated` BOOLEAN DEFAULT FALSE,
-  `is_residential` BOOLEAN DEFAULT FALSE,
-  `anonymity_level` ENUM('transparent', 'anonymous', 'elite') DEFAULT 'anonymous',
-  `reputation_score` DECIMAL(5,2) DEFAULT 50.00,
-  `max_concurrent_connections` INT DEFAULT 10,
-  `current_connections` INT DEFAULT 0,
-  `allowed_domains` TEXT,
-  `blocked_domains` TEXT,
-  `custom_headers` JSON,
-  `isolation_enabled` BOOLEAN DEFAULT FALSE,
-  `verification_status` ENUM('pending', 'verified', 'failed', 'expired') DEFAULT 'pending',
-  `last_verification_at` TIMESTAMP NULL,
-  `response_time_ms` INT DEFAULT 0,
-  `bandwidth_limit_mbps` INT DEFAULT 0,
-  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (`pool_id`) REFERENCES `proxy_pools`(`id`) ON DELETE CASCADE,
-  INDEX `idx_pool_id` (`pool_id`),
-  INDEX `idx_country` (`country`),
-  INDEX `idx_active` (`active`),
-  INDEX `idx_region` (`region`),
-  INDEX `idx_provider` (`provider`),
-  INDEX `idx_verification_status` (`verification_status`),
-  INDEX `idx_reputation` (`reputation_score`),
-  INDEX `idx_anonymity` (`anonymity_level`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- Note: External proxy providers have been completely removed
+-- All proxy functionality is now self-contained using custom infrastructure
+-- See custom_proxy_servers and dynamic_ip_pool tables for managed infrastructure
 
 -- Replicas table: Individual replica instances
 CREATE TABLE IF NOT EXISTS `replicas` (
