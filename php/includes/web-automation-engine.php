@@ -12,7 +12,6 @@
  * - Rate limiting and retry logic
  * - Concurrent request management
  * - Full integration with custom proxy engine
- * - Data transformation pipelines
  * - Session and cookie management
  */
 
@@ -213,11 +212,6 @@ class WebAutomationEngine {
             foreach ($options['selectors'] as $key => $selector) {
                 $data[$key] = $this->extractData($dom, $selector, $options);
             }
-        }
-        
-        // Apply transformations
-        if (isset($options['transform'])) {
-            $data = $this->applyTransformations($data, $options['transform']);
         }
         
         // Store result
@@ -824,23 +818,6 @@ class WebAutomationEngine {
         return $xpath;
     }
     
-    /**
-     * Apply data transformations
-     */
-    private function applyTransformations($data, $transformations) {
-        foreach ($transformations as $field => $transform) {
-            if (is_callable($transform)) {
-                $data[$field] = $transform($data[$field] ?? null, $data);
-            } elseif (is_array($transform)) {
-                // Apply pipeline of transformations
-                foreach ($transform as $func) {
-                    $data[$field] = $func($data[$field] ?? null, $data);
-                }
-            }
-        }
-        
-        return $data;
-    }
     
     /**
      * Select browser profile for anti-detection
