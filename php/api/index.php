@@ -137,6 +137,27 @@ class APIRouter {
                 return $this->getIpPoolStats();
             }
             
+            // New enhanced country/region proxy endpoints
+            if ($path === '/proxies/countries' && $this->method === 'GET') {
+                return $this->getSupportedCountries();
+            }
+            
+            if ($path === '/proxies/regions' && $this->method === 'GET') {
+                return $this->getRegionalGroups();
+            }
+            
+            if ($path === '/proxies/ip-pool/countries' && $this->method === 'GET') {
+                return $this->getIpPoolByCountry();
+            }
+            
+            if (preg_match('#^/proxies/servers/regions(?:/([^/]+))?$#', $path, $matches) && $this->method === 'GET') {
+                return $this->getProxyServersByRegion($matches[1] ?? null);
+            }
+            
+            if ($path === '/proxies/route/optimal' && $this->method === 'POST') {
+                return $this->getOptimalRoute();
+            }
+            
             if ($path === '/health' && $this->method === 'GET') {
                 return $this->healthCheck();
             }
@@ -517,6 +538,89 @@ class APIRouter {
             'stats' => $stats[0] ?? [],
             'by_country' => $byCountry
         ]);
+    }
+    
+    private function getSupportedCountries() {
+        try {
+            $proxyEngine = new CustomProxyEngine();
+            $countries = $proxyEngine->getSupportedCountries();
+            
+            $this->sendResponse([
+                'total' => count($countries),
+                'countries' => $countries,
+                'message' => 'All countries supported by custom proxy infrastructure'
+            ]);
+        } catch (Exception $e) {
+            $this->sendResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+    
+    private function getRegionalGroups() {
+        try {
+            $proxyEngine = new CustomProxyEngine();
+            $regions = $proxyEngine->getRegionalGroups();
+            
+            $this->sendResponse([
+                'total' => count($regions),
+                'regions' => $regions,
+                'message' => 'Regional groupings for optimal routing'
+            ]);
+        } catch (Exception $e) {
+            $this->sendResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+    
+    private function getIpPoolByCountry() {
+        try {
+            $proxyEngine = new CustomProxyEngine();
+            $stats = $proxyEngine->getIpPoolStatsByCountry();
+            
+            $this->sendResponse([
+                'total_countries' => count($stats),
+                'stats' => $stats,
+                'message' => 'IP pool statistics by country'
+            ]);
+        } catch (Exception $e) {
+            $this->sendResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+    
+    private function getProxyServersByRegion($region = null) {
+        try {
+            $proxyEngine = new CustomProxyEngine();
+            $stats = $proxyEngine->getProxyServersByRegion($region);
+            
+            $this->sendResponse([
+                'region' => $region,
+                'stats' => $stats,
+                'message' => $region ? "Proxy servers in $region region" : 'All proxy servers by region'
+            ]);
+        } catch (Exception $e) {
+            $this->sendResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+    
+    private function getOptimalRoute() {
+        try {
+            $proxyEngine = new CustomProxyEngine();
+            
+            $sourceCountry = $this->requestData['source_country'] ?? 'US';
+            $targetCountry = $this->requestData['target_country'] ?? 'US';
+            $intermediatePreferences = $this->requestData['intermediate_preferences'] ?? [];
+            
+            $route = $proxyEngine->getOptimalRouteForCountries(
+                $sourceCountry,
+                $targetCountry,
+                $intermediatePreferences
+            );
+            
+            $this->sendResponse([
+                'route' => $route,
+                'message' => 'Optimal route calculated for geographic requirements'
+            ]);
+        } catch (Exception $e) {
+            $this->sendResponse(['error' => $e->getMessage()], 500);
+        }
     }
     
     private function healthCheck() {

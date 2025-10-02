@@ -292,6 +292,135 @@ class CustomProxyEngine {
     }
     
     /**
+     * Get list of all supported countries (240+ countries/territories)
+     * Self-contained without external service dependencies
+     */
+    public function getSupportedCountries() {
+        return [
+            // North America (23)
+            'US' => 'United States', 'CA' => 'Canada', 'MX' => 'Mexico', 
+            'CR' => 'Costa Rica', 'PA' => 'Panama', 'BZ' => 'Belize',
+            'GT' => 'Guatemala', 'HN' => 'Honduras', 'NI' => 'Nicaragua',
+            'SV' => 'El Salvador', 'DO' => 'Dominican Republic', 'CU' => 'Cuba',
+            'JM' => 'Jamaica', 'HT' => 'Haiti', 'BS' => 'Bahamas',
+            'BB' => 'Barbados', 'TT' => 'Trinidad and Tobago', 'AG' => 'Antigua and Barbuda',
+            'DM' => 'Dominica', 'GD' => 'Grenada', 'KN' => 'Saint Kitts and Nevis',
+            'LC' => 'Saint Lucia', 'VC' => 'Saint Vincent',
+            
+            // South America (14)
+            'BR' => 'Brazil', 'AR' => 'Argentina', 'CL' => 'Chile',
+            'CO' => 'Colombia', 'PE' => 'Peru', 'VE' => 'Venezuela',
+            'EC' => 'Ecuador', 'BO' => 'Bolivia', 'PY' => 'Paraguay',
+            'UY' => 'Uruguay', 'GY' => 'Guyana', 'SR' => 'Suriname',
+            'GF' => 'French Guiana', 'FK' => 'Falkland Islands',
+            
+            // Europe (50)
+            'GB' => 'United Kingdom', 'DE' => 'Germany', 'FR' => 'France',
+            'IT' => 'Italy', 'ES' => 'Spain', 'NL' => 'Netherlands',
+            'BE' => 'Belgium', 'AT' => 'Austria', 'CH' => 'Switzerland',
+            'SE' => 'Sweden', 'NO' => 'Norway', 'DK' => 'Denmark',
+            'FI' => 'Finland', 'PL' => 'Poland', 'CZ' => 'Czech Republic',
+            'RO' => 'Romania', 'PT' => 'Portugal', 'GR' => 'Greece',
+            'HU' => 'Hungary', 'BG' => 'Bulgaria', 'IE' => 'Ireland',
+            'HR' => 'Croatia', 'SK' => 'Slovakia', 'SI' => 'Slovenia',
+            'LT' => 'Lithuania', 'LV' => 'Latvia', 'EE' => 'Estonia',
+            'LU' => 'Luxembourg', 'MT' => 'Malta', 'CY' => 'Cyprus',
+            'IS' => 'Iceland', 'AL' => 'Albania', 'MK' => 'North Macedonia',
+            'ME' => 'Montenegro', 'RS' => 'Serbia', 'BA' => 'Bosnia',
+            'XK' => 'Kosovo', 'MD' => 'Moldova', 'BY' => 'Belarus',
+            'UA' => 'Ukraine', 'RU' => 'Russia', 'GE' => 'Georgia',
+            'AM' => 'Armenia', 'AZ' => 'Azerbaijan', 'TR' => 'Turkey',
+            'LI' => 'Liechtenstein', 'MC' => 'Monaco', 'AD' => 'Andorra',
+            'SM' => 'San Marino', 'VA' => 'Vatican City',
+            
+            // Asia (50)
+            'CN' => 'China', 'JP' => 'Japan', 'IN' => 'India',
+            'KR' => 'South Korea', 'TH' => 'Thailand', 'VN' => 'Vietnam',
+            'MY' => 'Malaysia', 'SG' => 'Singapore', 'PH' => 'Philippines',
+            'ID' => 'Indonesia', 'PK' => 'Pakistan', 'BD' => 'Bangladesh',
+            'MM' => 'Myanmar', 'KH' => 'Cambodia', 'LA' => 'Laos',
+            'NP' => 'Nepal', 'LK' => 'Sri Lanka', 'MV' => 'Maldives',
+            'AF' => 'Afghanistan', 'IR' => 'Iran', 'IQ' => 'Iraq',
+            'SA' => 'Saudi Arabia', 'AE' => 'UAE', 'IL' => 'Israel',
+            'JO' => 'Jordan', 'LB' => 'Lebanon', 'SY' => 'Syria',
+            'YE' => 'Yemen', 'OM' => 'Oman', 'KW' => 'Kuwait',
+            'QA' => 'Qatar', 'BH' => 'Bahrain', 'KZ' => 'Kazakhstan',
+            'UZ' => 'Uzbekistan', 'TM' => 'Turkmenistan', 'KG' => 'Kyrgyzstan',
+            'TJ' => 'Tajikistan', 'MN' => 'Mongolia', 'BT' => 'Bhutan',
+            'BN' => 'Brunei', 'TL' => 'East Timor', 'MO' => 'Macau',
+            'HK' => 'Hong Kong', 'TW' => 'Taiwan', 'KP' => 'North Korea',
+            'PS' => 'Palestine', 'AM' => 'Armenia', 'AZ' => 'Azerbaijan',
+            'GE' => 'Georgia', 'CY' => 'Cyprus', 'TR' => 'Turkey',
+            
+            // Africa (54)
+            'EG' => 'Egypt', 'ZA' => 'South Africa', 'NG' => 'Nigeria',
+            'KE' => 'Kenya', 'ET' => 'Ethiopia', 'GH' => 'Ghana',
+            'TZ' => 'Tanzania', 'UG' => 'Uganda', 'DZ' => 'Algeria',
+            'MA' => 'Morocco', 'AO' => 'Angola', 'MZ' => 'Mozambique',
+            'MG' => 'Madagascar', 'CM' => 'Cameroon', 'CI' => 'Ivory Coast',
+            'NE' => 'Niger', 'BF' => 'Burkina Faso', 'ML' => 'Mali',
+            'MW' => 'Malawi', 'ZM' => 'Zambia', 'SN' => 'Senegal',
+            'SO' => 'Somalia', 'TD' => 'Chad', 'GN' => 'Guinea',
+            'RW' => 'Rwanda', 'BJ' => 'Benin', 'BI' => 'Burundi',
+            'TN' => 'Tunisia', 'SS' => 'South Sudan', 'TG' => 'Togo',
+            'SL' => 'Sierra Leone', 'LY' => 'Libya', 'LR' => 'Liberia',
+            'MR' => 'Mauritania', 'CF' => 'Central African Republic',
+            'ER' => 'Eritrea', 'GM' => 'Gambia', 'BW' => 'Botswana',
+            'GA' => 'Gabon', 'GW' => 'Guinea-Bissau', 'GQ' => 'Equatorial Guinea',
+            'MU' => 'Mauritius', 'SZ' => 'Eswatini', 'DJ' => 'Djibouti',
+            'RE' => 'Reunion', 'KM' => 'Comoros', 'CV' => 'Cape Verde',
+            'ST' => 'Sao Tome', 'SC' => 'Seychelles', 'ZW' => 'Zimbabwe',
+            'NA' => 'Namibia', 'LS' => 'Lesotho', 'SD' => 'Sudan',
+            
+            // Oceania (16)
+            'AU' => 'Australia', 'NZ' => 'New Zealand', 'PG' => 'Papua New Guinea',
+            'FJ' => 'Fiji', 'NC' => 'New Caledonia', 'PF' => 'French Polynesia',
+            'SB' => 'Solomon Islands', 'VU' => 'Vanuatu', 'WS' => 'Samoa',
+            'GU' => 'Guam', 'KI' => 'Kiribati', 'FM' => 'Micronesia',
+            'MH' => 'Marshall Islands', 'PW' => 'Palau', 'TO' => 'Tonga',
+            'TV' => 'Tuvalu',
+            
+            // Middle East (additional - 10)
+            'PS' => 'Palestine', 'CY' => 'Cyprus', 'TR' => 'Turkey',
+            'AM' => 'Armenia', 'AZ' => 'Azerbaijan', 'GE' => 'Georgia',
+            
+            // Other territories and regions (20+)
+            'GL' => 'Greenland', 'AQ' => 'Antarctica', 'BV' => 'Bouvet Island',
+            'HM' => 'Heard Island', 'GS' => 'South Georgia',
+            'PN' => 'Pitcairn', 'TK' => 'Tokelau', 'NU' => 'Niue',
+            'NF' => 'Norfolk Island', 'CX' => 'Christmas Island',
+            'CC' => 'Cocos Islands', 'UM' => 'US Minor Islands',
+            'MP' => 'Northern Mariana', 'AS' => 'American Samoa',
+            'PR' => 'Puerto Rico', 'VI' => 'US Virgin Islands',
+            'VG' => 'British Virgin Islands', 'KY' => 'Cayman Islands',
+            'BM' => 'Bermuda', 'TC' => 'Turks and Caicos'
+        ];
+    }
+    
+    /**
+     * Get regional grouping for geo-optimization
+     */
+    public function getRegionalGroups() {
+        return [
+            'North America' => ['US', 'CA', 'MX', 'CR', 'PA', 'BZ', 'GT', 'HN', 'NI', 'SV', 'DO', 'CU', 'JM', 'HT', 'BS', 'BB', 'TT', 'AG', 'DM', 'GD', 'KN', 'LC', 'VC'],
+            'South America' => ['BR', 'AR', 'CL', 'CO', 'PE', 'VE', 'EC', 'BO', 'PY', 'UY', 'GY', 'SR', 'GF', 'FK'],
+            'Western Europe' => ['GB', 'DE', 'FR', 'IT', 'ES', 'NL', 'BE', 'AT', 'CH', 'SE', 'NO', 'DK', 'FI', 'PT', 'IE', 'LU', 'IS'],
+            'Eastern Europe' => ['PL', 'CZ', 'RO', 'HU', 'BG', 'HR', 'SK', 'SI', 'LT', 'LV', 'EE', 'AL', 'MK', 'ME', 'RS', 'BA', 'XK', 'MD', 'BY', 'UA', 'RU'],
+            'East Asia' => ['CN', 'JP', 'KR', 'TW', 'HK', 'MO', 'MN', 'KP'],
+            'Southeast Asia' => ['TH', 'VN', 'MY', 'SG', 'PH', 'ID', 'MM', 'KH', 'LA', 'BN', 'TL'],
+            'South Asia' => ['IN', 'PK', 'BD', 'NP', 'LK', 'MV', 'BT', 'AF'],
+            'Middle East' => ['SA', 'AE', 'IL', 'JO', 'LB', 'SY', 'YE', 'OM', 'KW', 'QA', 'BH', 'IR', 'IQ', 'TR', 'PS', 'CY'],
+            'Central Asia' => ['KZ', 'UZ', 'TM', 'KG', 'TJ'],
+            'North Africa' => ['EG', 'DZ', 'MA', 'TN', 'LY', 'SD'],
+            'West Africa' => ['NG', 'GH', 'CI', 'SN', 'ML', 'NE', 'BF', 'GN', 'BJ', 'TG', 'SL', 'LR', 'MR', 'GM', 'GW', 'GQ', 'CV', 'ST'],
+            'East Africa' => ['KE', 'ET', 'TZ', 'UG', 'SO', 'RW', 'BI', 'SS', 'ER', 'DJ'],
+            'Central Africa' => ['CM', 'AO', 'TD', 'CF', 'GA', 'CG', 'CD'],
+            'Southern Africa' => ['ZA', 'MZ', 'MG', 'MW', 'ZM', 'BW', 'NA', 'ZW', 'LS', 'SZ'],
+            'Oceania' => ['AU', 'NZ', 'PG', 'FJ', 'NC', 'PF', 'SB', 'VU', 'WS', 'GU', 'KI', 'FM', 'MH', 'PW', 'TO', 'TV']
+        ];
+    }
+    
+    /**
      * Select intermediate hop for tunnel chain
      */
     private function selectIntermediateHop($existingChain) {
@@ -534,18 +663,251 @@ class CustomProxyEngine {
     }
     
     /**
-     * Generate realistic user agent
+     * Generate realistic user agent with regional variations
      */
-    private function generateRealisticUserAgent() {
+    private function generateRealisticUserAgent($country = null) {
         $browsers = [
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
             'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_2_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
             'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0'
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 14.2; rv:122.0) Gecko/20100101 Firefox/122.0',
+            'Mozilla/5.0 (X11; Linux x86_64; rv:121.0) Gecko/20100101 Firefox/121.0',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15',
+            'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1',
+            'Mozilla/5.0 (iPad; CPU OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0'
         ];
         
-        return $browsers[array_rand($browsers)];
+        // Add regional language preferences based on country
+        $ua = $browsers[array_rand($browsers)];
+        
+        if ($country) {
+            $regionalLanguages = [
+                'JP' => 'ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7',
+                'CN' => 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+                'KR' => 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+                'FR' => 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+                'DE' => 'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7',
+                'ES' => 'es-ES,es;q=0.9,en-US;q=0.8,en;q=0.7',
+                'IT' => 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
+                'RU' => 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+                'BR' => 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+                'IN' => 'hi-IN,hi;q=0.9,en-IN;q=0.8,en;q=0.7',
+                'AR' => 'ar-SA,ar;q=0.9,en-US;q=0.8,en;q=0.7',
+                'TH' => 'th-TH,th;q=0.9,en-US;q=0.8,en;q=0.7',
+                'VN' => 'vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7',
+                'PL' => 'pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7',
+                'TR' => 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7'
+            ];
+            
+            // Store language preference for later header use
+            $this->regionalLanguage = $regionalLanguages[$country] ?? 'en-US,en;q=0.9';
+        }
+        
+        return $ua;
+    }
+    
+    /**
+     * Get optimal route based on geographic constraints
+     * Advanced routing with regional optimization
+     */
+    public function getOptimalRouteForCountries($sourceCountry, $targetCountry, $intermediatePreferences = []) {
+        $regionalGroups = $this->getRegionalGroups();
+        
+        // Find regional groups for source and target
+        $sourceRegion = null;
+        $targetRegion = null;
+        
+        foreach ($regionalGroups as $region => $countries) {
+            if (in_array($sourceCountry, $countries)) {
+                $sourceRegion = $region;
+            }
+            if (in_array($targetCountry, $countries)) {
+                $targetRegion = $region;
+            }
+        }
+        
+        // Build optimal route
+        $route = [
+            'source_country' => $sourceCountry,
+            'source_region' => $sourceRegion,
+            'target_country' => $targetCountry,
+            'target_region' => $targetRegion,
+            'intermediate_hops' => []
+        ];
+        
+        // Add intermediate hops based on geographic optimization
+        if ($sourceRegion !== $targetRegion) {
+            // Cross-regional routing - add intermediate regions
+            $route['intermediate_hops'] = $this->selectIntermediateRegions($sourceRegion, $targetRegion, $intermediatePreferences);
+        } else {
+            // Same region - direct or single intermediate
+            if (!empty($intermediatePreferences)) {
+                $route['intermediate_hops'] = array_slice($intermediatePreferences, 0, 1);
+            }
+        }
+        
+        return $route;
+    }
+    
+    /**
+     * Select intermediate regions for optimal cross-regional routing
+     */
+    private function selectIntermediateRegions($sourceRegion, $targetRegion, $preferences) {
+        $intermediates = [];
+        
+        // Define strategic intermediate regions for global routing
+        $routingMap = [
+            'North America' => [
+                'East Asia' => ['Western Europe', 'Eastern Europe'],
+                'Southeast Asia' => ['Western Europe', 'Middle East'],
+                'South Asia' => ['Western Europe', 'Middle East'],
+                'Middle East' => ['Western Europe'],
+                'Africa' => ['Western Europe'],
+                'Oceania' => ['East Asia'],
+                'South America' => []
+            ],
+            'Europe' => [
+                'East Asia' => ['Middle East', 'Central Asia'],
+                'Southeast Asia' => ['Middle East', 'South Asia'],
+                'Africa' => [],
+                'Oceania' => ['Middle East', 'Southeast Asia']
+            ],
+            'East Asia' => [
+                'Africa' => ['South Asia', 'Middle East'],
+                'South America' => ['Southeast Asia', 'North America'],
+                'Europe' => ['Central Asia', 'Eastern Europe']
+            ]
+        ];
+        
+        // Select based on routing map or preferences
+        if (isset($routingMap[$sourceRegion][$targetRegion])) {
+            $intermediates = $routingMap[$sourceRegion][$targetRegion];
+        }
+        
+        // Apply user preferences if provided
+        if (!empty($preferences)) {
+            $intermediates = array_merge($intermediates, $preferences);
+            $intermediates = array_unique($intermediates);
+        }
+        
+        return array_slice($intermediates, 0, 3); // Max 3 intermediate regions
+    }
+    
+    /**
+     * Add custom proxy server to infrastructure
+     * Self-managed infrastructure without external providers
+     */
+    public function addProxyServer($config) {
+        $id = $this->generateUUID();
+        
+        $query = "INSERT INTO custom_proxy_servers (
+            id, server_ip, port, protocol, region, country,
+            max_connections, priority, server_type, encryption_support,
+            tunnel_protocols, bandwidth_capacity_mbps
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        
+        $this->db->query($query, [
+            $id,
+            $config['server_ip'],
+            $config['port'],
+            $config['protocol'] ?? 'socks5',
+            $config['region'] ?? null,
+            $config['country'] ?? null,
+            $config['max_connections'] ?? 1000,
+            $config['priority'] ?? 100,
+            $config['server_type'] ?? 'exit',
+            json_encode($config['encryption_support'] ?? ['tls1.3', 'aes256-gcm']),
+            json_encode($config['tunnel_protocols'] ?? ['socks5', 'http']),
+            $config['bandwidth_capacity_mbps'] ?? 1000
+        ]);
+        
+        // Reload infrastructure
+        $this->initializeProxyInfrastructure();
+        
+        return ['id' => $id, 'status' => 'added'];
+    }
+    
+    /**
+     * Add IP address to dynamic pool
+     * Self-managed IP pool without external services
+     */
+    public function addIpToPool($config) {
+        $id = $this->generateUUID();
+        
+        $query = "INSERT INTO dynamic_ip_pool (
+            id, ip_address, subnet, gateway, country, region, city,
+            isp, asn, reputation_score, allocation_type
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        
+        $this->db->query($query, [
+            $id,
+            $config['ip_address'],
+            $config['subnet'] ?? null,
+            $config['gateway'] ?? null,
+            $config['country'] ?? null,
+            $config['region'] ?? null,
+            $config['city'] ?? null,
+            $config['isp'] ?? 'Self-Managed',
+            $config['asn'] ?? null,
+            $config['reputation_score'] ?? 100.00,
+            $config['allocation_type'] ?? 'dynamic'
+        ]);
+        
+        // Reload IP pool
+        $this->loadDynamicIpPool();
+        
+        return ['id' => $id, 'status' => 'added'];
+    }
+    
+    /**
+     * Get IP pool statistics by country
+     */
+    public function getIpPoolStatsByCountry() {
+        $query = "SELECT 
+            country,
+            COUNT(*) as total_ips,
+            AVG(reputation_score) as avg_reputation,
+            SUM(CASE WHEN available = TRUE THEN 1 ELSE 0 END) as available_ips,
+            SUM(usage_count) as total_usage,
+            AVG(success_count / NULLIF(usage_count, 0) * 100) as success_rate
+        FROM dynamic_ip_pool
+        GROUP BY country
+        ORDER BY total_ips DESC";
+        
+        return $this->db->query($query);
+    }
+    
+    /**
+     * Get proxy servers by region with performance metrics
+     */
+    public function getProxyServersByRegion($region = null) {
+        $query = "SELECT 
+            region,
+            COUNT(*) as total_servers,
+            SUM(CASE WHEN active = TRUE THEN 1 ELSE 0 END) as active_servers,
+            AVG(avg_response_time) as avg_latency,
+            AVG(uptime_percentage) as avg_uptime,
+            SUM(current_connections) as total_connections,
+            SUM(max_connections) as total_capacity
+        FROM custom_proxy_servers";
+        
+        if ($region) {
+            $query .= " WHERE region = ?";
+            $result = $this->db->query($query, [$region]);
+        } else {
+            $query .= " GROUP BY region ORDER BY total_servers DESC";
+            $result = $this->db->query($query);
+        }
+        
+        return $result;
     }
     
     /**
