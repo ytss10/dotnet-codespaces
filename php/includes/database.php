@@ -117,14 +117,27 @@ class DatabaseManager {
     }
     
     public function insert($table, $data) {
+        // Validate table name
+        if (!preg_match('/^[a-zA-Z0-9_]+$/', $table)) {
+            throw new Exception("Invalid table name");
+        }
+        
         $columns = array_keys($data);
         $values = array_values($data);
         $placeholders = array_fill(0, count($values), '?');
         
+        // Escape column names
+        $escapedColumns = array_map(function($col) {
+            if (!preg_match('/^[a-zA-Z0-9_]+$/', $col)) {
+                throw new Exception("Invalid column name: $col");
+            }
+            return "`$col`";
+        }, $columns);
+        
         $sql = sprintf(
-            "INSERT INTO %s (%s) VALUES (%s)",
+            "INSERT INTO `%s` (%s) VALUES (%s)",
             $table,
-            implode(', ', $columns),
+            implode(', ', $escapedColumns),
             implode(', ', $placeholders)
         );
         
@@ -132,16 +145,24 @@ class DatabaseManager {
     }
     
     public function update($table, $data, $where, $whereParams = []) {
+        // Validate table name
+        if (!preg_match('/^[a-zA-Z0-9_]+$/', $table)) {
+            throw new Exception("Invalid table name");
+        }
+        
         $setParts = [];
         $values = [];
         
         foreach ($data as $column => $value) {
-            $setParts[] = "$column = ?";
+            if (!preg_match('/^[a-zA-Z0-9_]+$/', $column)) {
+                throw new Exception("Invalid column name: $column");
+            }
+            $setParts[] = "`$column` = ?";
             $values[] = $value;
         }
         
         $sql = sprintf(
-            "UPDATE %s SET %s WHERE %s",
+            "UPDATE `%s` SET %s WHERE %s",
             $table,
             implode(', ', $setParts),
             $where
@@ -151,22 +172,44 @@ class DatabaseManager {
     }
     
     public function delete($table, $where, $whereParams = []) {
-        $sql = sprintf("DELETE FROM %s WHERE %s", $table, $where);
+        // Validate table name
+        if (!preg_match('/^[a-zA-Z0-9_]+$/', $table)) {
+            throw new Exception("Invalid table name");
+        }
+        $sql = sprintf("DELETE FROM `%s` WHERE %s", $table, $where);
         return $this->query($sql, $whereParams);
     }
     
     public function select($table, $columns = '*', $where = '', $whereParams = [], $orderBy = '', $limit = '') {
-        $sql = "SELECT $columns FROM $table";
+        // Validate table name
+        if (!preg_match('/^[a-zA-Z0-9_]+$/', $table)) {
+            throw new Exception("Invalid table name");
+        }
+        
+        // Validate columns (basic check for common cases)
+        if ($columns !== '*' && !preg_match('/^[a-zA-Z0-9_,\s\.\`]+$/', $columns)) {
+            throw new Exception("Invalid column specification");
+        }
+        
+        $sql = "SELECT $columns FROM `$table`";
         
         if ($where) {
             $sql .= " WHERE $where";
         }
         
         if ($orderBy) {
+            // Basic validation for ORDER BY
+            if (!preg_match('/^[a-zA-Z0-9_,\s\`]+(ASC|DESC|asc|desc)?$/i', $orderBy)) {
+                throw new Exception("Invalid ORDER BY clause");
+            }
             $sql .= " ORDER BY $orderBy";
         }
         
         if ($limit) {
+            // Validate LIMIT (must be numeric)
+            if (!preg_match('/^\d+(\s*,\s*\d+)?$/', $limit)) {
+                throw new Exception("Invalid LIMIT clause");
+            }
             $sql .= " LIMIT $limit";
         }
         
@@ -238,22 +281,39 @@ class DatabaseManager {
     }
     
     public function getTableInfo($table) {
-        return $this->query("DESCRIBE $table");
+        // Validate table name to prevent SQL injection
+        if (!preg_match('/^[a-zA-Z0-9_]+$/', $table)) {
+            throw new Exception("Invalid table name");
+        }
+        return $this->query("DESCRIBE `$table`");
     }
     
     public function tableExists($table) {
         $result = $this->query(
-            "SELECT COUNT(*) as count FROM information_schema.tables 
+            "SELECT COUNT(*) as count FROM information_schema.tables
              WHERE table_schema = ? AND table_name = ?",
             [DB_NAME, $table]
         );
         return $result[0]['count'] > 0;
     }
     
+    public function queryOne($sql, $params = []) {
+        $result = $this->query($sql, $params);
+        return !empty($result) ? $result[0] : null;
+    }
+    
     public function optimize() {
         $tables = ['sessions', 'replicas', 'proxies', 'metrics', 'events'];
         foreach ($tables as $table) {
-            $this->query("OPTIMIZE TABLE $table");
+            // Validate table name
+            if (!preg_match('/^[a-zA-Z0-9_]+$/', $table)) {
+                continue;
+            }
+            try {
+                $this->query("OPTIMIZE TABLE `$table`");
+            } catch (Exception $e) {
+                error_log("Failed to optimize table $table: " . $e->getMessage());
+            }
         }
     }
     

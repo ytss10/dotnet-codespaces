@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Multi-Site Loader</title>
+    <link rel="stylesheet" href="admin-panel.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr/dist/browser/signalr.js"></script>
+</head>
+<body>
+    <div class="admin-container">
+        <aside class="sidebar">
+            <div class="logo">
+                <h2>Admin Panel</h2>
+            </div>
+            <nav class="admin-nav">
+                <a href="#dashboard" class="nav-item active" data-section="dashboard">
+                    <span class="icon">📊</span> Dashboard
+                </a>
+                <a href="#sites" class="nav-item" data-section="sites">
+                    <span class="icon">🌐</span> Sites Management
+                </a>
+                <a href="#proxies" class="nav-item" data-section="proxies">
+                    <span class="icon">🔒</span> Proxy Configuration
+                </a>
+                <a href="#performance" class="nav-item" data-section="performance">
+                    <span class="icon">⚡</span> Performance
+                </a>
+                <a href="#settings" class="nav-item" data-section="settings">
+                    <span class="icon">⚙️</span> System Settings
+                </a>
+                <a href="#logs" class="nav-item" data-section="logs">
+                    <span class="icon">📝</span> Logs & Events
+                </a>
+            </nav>
+        </aside>
+
+        <main class="admin-main">
+            <!-- Dashboard Section -->
+            <section id="dashboard" class="admin-section active">
+                <header class="section-header">
+                    <h1>System Dashboard</h1>
+                    <div class="header-actions">
+                        <button class="btn-refresh" onclick="adminPanel.refreshDashboard()">🔄 Refresh</button>
+                        <button class="btn-export" onclick="adminPanel.exportReport()">📥 Export Report</button>
+                    </div>
+                </header>
+
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <h3>Active Sites</h3>
+                        <div class="metric-value" id="active-sites">0</div>
+                        <div class="metric-chart">
+                            <canvas id="sites-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <h3>System Load</h3>
+                        <div class="metric-value" id="system-load">0%</div>
+                        <div class="load-bars">
+                            <div class="load-bar cpu" data-label="CPU"></div>
+                            <div class="load-bar memory" data-label="Memory"></div>
+                            <div class="load-bar network" data-label="Network"></div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <h3>Request Throughput</h3>
+                        <div class="metric-value" id="throughput">0 req/s</div>
+                        <div class="metric-chart">
+                            <canvas id="throughput-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <h3>Proxy Health</h3>
+                        <div class="metric-value" id="proxy-health">100%</div>
+                        <div class="proxy-regions" id="proxy-regions"></div>
+                    </div>
+                </div>
+
+                <div class="worker-pools">
+                    <h2>Worker Pool Management</h2>
+                    <div class="pools-grid" id="worker-pools"></div>
+                </div>
+            </section>
+
+            <!-- Sites Management Section -->
+            <section id="sites" class="admin-section">
+                <header class="section-header">
+                    <h1>Sites Management</h1>
+                    <div class="header-actions">
+                        <input type="search" placeholder="Search sites..." id="site-search">
+                        <button class="btn-primary" onclick="adminPanel.showBatchLoader()">+ Batch Load</button>
+                    </div>
+                </header>
+
+                <div class="sites-controls">
+                    <button onclick="adminPanel.pauseAllSites()">⏸ Pause All</button>
+                    <button onclick="adminPanel.resumeAllSites()">▶ Resume All</button>
+                    <button onclick="adminPanel.clearAllSites()">🗑 Clear All</button>
+                    <select id="site-filter" onchange="adminPanel.filterSites(this.value)">
+                        <option value="all">All Sites</option>
+                        <option value="active">Active</option>
+                        <option value="paused">Paused</option>
+                        <option value="error">Error</option>
+                    </select>
+                </div>
+
+                <div class="sites-table-container">
+                    <table class="sites-table">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="select-all-sites"></th>
+                                <th>URL</th>
+                                <th>Status</th>
+                                <th>Proxy</th>
+                                <th>Load Time</th>
+                                <th>Size</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sites-tbody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Proxy Configuration Section -->
+            <section id="proxies" class="admin-section">
+                <header class="section-header">
+                    <h1>Proxy Configuration</h1>
+                </header>
+
+                <div class="proxy-config">
+                    <div class="config-group">
+                        <h3>Proxy Providers</h3>
+                        <div id="proxy-providers"></div>
+                        <button class="btn-add" onclick="adminPanel.addProxyProvider()">+ Add Provider</button>
+                    </div>
+
+                    <div class="config-group">
+                        <h3>Rotation Strategy</h3>
+                        <select id="rotation-strategy">
+                            <option value="round-robin">Round Robin</option>
+                            <option value="geo-optimized">Geo-Optimized</option>
+                            <option value="load-balanced">Load Balanced</option>
+                            <option value="sticky">Sticky Session</option>
+                        </select>
+                    </div>
+
+                    <div class="config-group">
+                        <h3>Health Check Settings</h3>
+                        <label>
+                            Check Interval (seconds):
+                            <input type="number" id="health-check-interval" value="300">
+                        </label>
+                        <label>
+                            Timeout (seconds):
+                            <input type="number" id="health-check-timeout" value="10">
+                        </label>
+                        <label>
+                            Max Failures:
+                            <input type="number" id="max-failures" value="3">
+                        </label>
+                    </div>
+
+                    <button class="btn-save" onclick="adminPanel.saveProxyConfig()">Save Configuration</button>
+                </div>
+
+                <div class="proxy-stats">
+                    <h3>Proxy Pool Statistics</h3>
+                    <div id="proxy-stats-grid"></div>
+                </div>
+            </section>
+
+            <!-- System Settings Section -->
+            <section id="settings" class="admin-section">
+                <header class="section-header">
+                    <h1>System Settings</h1>
+                </header>
+
+                <div class="settings-tabs">
+                    <button class="tab-btn active" data-tab="general">General</button>
+                    <button class="tab-btn" data-tab="performance">Performance</button>
+                    <button class="tab-btn" data-tab="security">Security</button>
+                    <button class="tab-btn" data-tab="advanced">Advanced</button>
+                </div>
+
+                <div class="settings-content">
+                    <div id="general-settings" class="tab-content active">
+                        <h3>General Settings</h3>
+                        <div class="setting-group">
+                            <label>
+                                Max Concurrent Sites:
+                                <input type="number" id="max-sites" value="1000000">
+                            </label>
+                            <label>
+                                Default Timeout (seconds):
+                                <input type="number" id="default-timeout" value="30">
+                            </label>
+                            <label>
+                                Auto-refresh Interval (seconds):
+                                <input type="number" id="refresh-interval" value="60">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="performance-settings" class="tab-content">
+                        <h3>Performance Tuning</h3>
+                        <div class="setting-group">
+                            <label>
+                                Worker Threads:
+                                <input type="range" id="worker-threads" min="1" max="100" value="50">
+                                <span class="range-value">50</span>
+                            </label>
+                            <label>
+                                Memory Cache Size (GB):
+                                <input type="range" id="cache-size" min="1" max="50" value="10">
+                                <span class="range-value">10 GB</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="enable-compression" checked>
+                                Enable Response Compression
+                            </label>
+                            <label>
+                                <input type="checkbox" id="enable-simd" checked>
+                                Enable SIMD Optimizations
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="security-settings" class="tab-content">
+                        <h3>Security Settings</h3>
+                        <div class="setting-group">
+                            <label>
+                                <input type="checkbox" id="enable-auth" checked>
+                                Require Authentication
+                            </label>
+                            <label>
+                                API Rate Limit (req/min):
+                                <input type="number" id="rate-limit" value="1000">
+                            </label>
+                            <label>
+                                Allowed Origins:
+                                <textarea id="allowed-origins" rows="3"></textarea>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="advanced-settings" class="tab-content">
+                        <h3>Advanced Configuration</h3>
+                        <div class="setting-group">
+                            <label>
+                                Custom Headers (JSON):
+                                <textarea id="custom-headers" rows="5">{}</textarea>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="enable-debug">
+                                Enable Debug Mode
+                            </label>
+                            <button class="btn-danger" onclick="adminPanel.clearAllData()">Clear All Data</button>
+                            <button class="btn-danger" onclick="adminPanel.resetToDefaults()">Reset to Defaults</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-actions">
+                    <button class="btn-save" onclick="adminPanel.saveSettings()">Save All Settings</button>
+                    <button class="btn-apply" onclick="adminPanel.applySettings()">Apply Without Restart</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="admin-panel.js"></script>
+</body>
+</html>

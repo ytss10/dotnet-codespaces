@@ -4,6 +4,9 @@
  * Advanced RESTful API for orchestration
  */
 
+// Suppress errors for InfinityFree compatibility
+error_reporting(E_ERROR | E_PARSE);
+
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/database.php';
 require_once __DIR__ . '/../includes/orchestrator.php';
@@ -95,6 +98,10 @@ class APIRouter {
             
             if ($path === '/events' && $this->method === 'GET') {
                 return $this->getEvents();
+            }
+            
+            if ($path === '/stream' && $this->method === 'GET') {
+                return $this->streamSessions();
             }
             
             if ($path === '/proxies' && $this->method === 'GET') {
@@ -708,6 +715,11 @@ class APIRouter {
             $db = DatabaseManager::getInstance();
             $taskId = bin2hex(random_bytes(16));
             
+            // Check if automation_tasks table exists
+            if (!$db->tableExists('automation_tasks')) {
+                $this->createAutomationTasksTable();
+            }
+            
             $name = $this->requestData['name'] ?? 'Untitled Task';
             $type = $this->requestData['type'] ?? 'scraping';
             $urls = isset($this->requestData['urls']) ? json_encode($this->requestData['urls']) : null;
@@ -716,21 +728,20 @@ class APIRouter {
             $proxyConfig = isset($this->requestData['proxy']) ? json_encode($this->requestData['proxy']) : null;
             
             $sql = "INSERT INTO automation_tasks (id, name, type, urls, selectors, actions, proxy_config, rate_limit, max_retries, concurrency, priority) 
-                    VALUES (:id, :name, :type, :urls, :selectors, :actions, :proxy_config, :rate_limit, :max_retries, :concurrency, :priority)";
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             
-            $stmt = $db->prepare($sql);
-            $stmt->execute([
-                ':id' => $taskId,
-                ':name' => $name,
-                ':type' => $type,
-                ':urls' => $urls,
-                ':selectors' => $selectors,
-                ':actions' => $actions,
-                ':proxy_config' => $proxyConfig,
-                ':rate_limit' => $this->requestData['rate_limit'] ?? 100,
-                ':max_retries' => $this->requestData['max_retries'] ?? 3,
-                ':concurrency' => $this->requestData['concurrency'] ?? 5,
-                ':priority' => $this->requestData['priority'] ?? 5
+            $db->query($sql, [
+                $taskId,
+                $name,
+                $type,
+                $urls,
+                $selectors,
+                $actions,
+                $proxyConfig,
+                $this->requestData['rate_limit'] ?? 100,
+                $this->requestData['max_retries'] ?? 3,
+                $this->requestData['concurrency'] ?? 5,
+                $this->requestData['priority'] ?? 5
             ]);
             
             $this->sendResponse([
@@ -742,12 +753,39 @@ class APIRouter {
         }
     }
     
+    private function createAutomationTasksTable() {
+        $db = DatabaseManager::getInstance();
+        $sql = "CREATE TABLE IF NOT EXISTS `automation_tasks` (
+            `id` VARCHAR(100) PRIMARY KEY,
+            `name` VARCHAR(255) NOT NULL,
+            `type` VARCHAR(50) NOT NULL,
+            `urls` TEXT,
+            `selectors` TEXT,
+            `actions` TEXT,
+            `proxy_config` TEXT,
+            `rate_limit` INT DEFAULT 100,
+            `max_retries` INT DEFAULT 3,
+            `concurrency` INT DEFAULT 5,
+            `priority` INT DEFAULT 5,
+            `status` VARCHAR(50) DEFAULT 'pending',
+            `started_at` TIMESTAMP NULL,
+            `stopped_at` TIMESTAMP NULL,
+            `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX `idx_status` (`status`),
+            INDEX `idx_type` (`type`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+        $db->query($sql);
+    }
+    
     private function getAutomationTasks() {
         try {
             $db = DatabaseManager::getInstance();
+            if (!$db->tableExists('automation_tasks')) {
+                $this->sendResponse(['tasks' => [], 'count' => 0]);
+                return;
+            }
             $sql = "SELECT * FROM automation_tasks ORDER BY created_at DESC LIMIT 100";
-            $stmt = $db->query($sql);
-            $tasks = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $tasks = $db->query($sql);
             
             $this->sendResponse([
                 'tasks' => $tasks,
@@ -761,17 +799,19 @@ class APIRouter {
     private function getAutomationTask($taskId) {
         try {
             $db = DatabaseManager::getInstance();
-            $sql = "SELECT * FROM automation_tasks WHERE id = :id";
-            $stmt = $db->prepare($sql);
-            $stmt->execute([':id' => $taskId]);
-            $task = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$db->tableExists('automation_tasks')) {
+                $this->sendResponse(['error' => 'Task not found'], 404);
+                return;
+            }
+            $sql = "SELECT * FROM automation_tasks WHERE id = ?";
+            $tasks = $db->query($sql, [$taskId]);
             
-            if (!$task) {
+            if (empty($tasks)) {
                 $this->sendResponse(['error' => 'Task not found'], 404);
                 return;
             }
             
-            $this->sendResponse(['task' => $task]);
+            $this->sendResponse(['task' => $tasks[0]]);
         } catch (Exception $e) {
             $this->sendResponse(['error' => $e->getMessage()], 500);
         }
@@ -782,19 +822,19 @@ class APIRouter {
             $db = DatabaseManager::getInstance();
             
             $updates = [];
-            $params = [':id' => $taskId];
+            $params = [];
             
             if (isset($this->requestData['name'])) {
-                $updates[] = "name = :name";
-                $params[':name'] = $this->requestData['name'];
+                $updates[] = "name = ?";
+                $params[] = $this->requestData['name'];
             }
             if (isset($this->requestData['status'])) {
-                $updates[] = "status = :status";
-                $params[':status'] = $this->requestData['status'];
+                $updates[] = "status = ?";
+                $params[] = $this->requestData['status'];
             }
             if (isset($this->requestData['priority'])) {
-                $updates[] = "priority = :priority";
-                $params[':priority'] = $this->requestData['priority'];
+                $updates[] = "priority = ?";
+                $params[] = $this->requestData['priority'];
             }
             
             if (empty($updates)) {
@@ -802,9 +842,9 @@ class APIRouter {
                 return;
             }
             
-            $sql = "UPDATE automation_tasks SET " . implode(', ', $updates) . " WHERE id = :id";
-            $stmt = $db->prepare($sql);
-            $stmt->execute($params);
+            $params[] = $taskId;
+            $sql = "UPDATE automation_tasks SET " . implode(', ', $updates) . " WHERE id = ?";
+            $db->query($sql, $params);
             
             $this->sendResponse(['message' => 'Task updated successfully']);
         } catch (Exception $e) {
@@ -815,9 +855,8 @@ class APIRouter {
     private function deleteAutomationTask($taskId) {
         try {
             $db = DatabaseManager::getInstance();
-            $sql = "DELETE FROM automation_tasks WHERE id = :id";
-            $stmt = $db->prepare($sql);
-            $stmt->execute([':id' => $taskId]);
+            $sql = "DELETE FROM automation_tasks WHERE id = ?";
+            $db->query($sql, [$taskId]);
             
             $this->sendResponse(['message' => 'Task deleted successfully']);
         } catch (Exception $e) {
@@ -828,9 +867,8 @@ class APIRouter {
     private function startAutomationTask($taskId) {
         try {
             $db = DatabaseManager::getInstance();
-            $sql = "UPDATE automation_tasks SET status = 'running', started_at = NOW() WHERE id = :id";
-            $stmt = $db->prepare($sql);
-            $stmt->execute([':id' => $taskId]);
+            $sql = "UPDATE automation_tasks SET status = 'running', started_at = NOW() WHERE id = ?";
+            $db->query($sql, [$taskId]);
             
             $this->sendResponse(['message' => 'Task started successfully']);
         } catch (Exception $e) {
@@ -841,9 +879,8 @@ class APIRouter {
     private function stopAutomationTask($taskId) {
         try {
             $db = DatabaseManager::getInstance();
-            $sql = "UPDATE automation_tasks SET status = 'stopped', stopped_at = NOW() WHERE id = :id";
-            $stmt = $db->prepare($sql);
-            $stmt->execute([':id' => $taskId]);
+            $sql = "UPDATE automation_tasks SET status = 'stopped', stopped_at = NOW() WHERE id = ?";
+            $db->query($sql, [$taskId]);
             
             $this->sendResponse(['message' => 'Task stopped successfully']);
         } catch (Exception $e) {
@@ -854,9 +891,8 @@ class APIRouter {
     private function pauseAutomationTask($taskId) {
         try {
             $db = DatabaseManager::getInstance();
-            $sql = "UPDATE automation_tasks SET status = 'paused' WHERE id = :id";
-            $stmt = $db->prepare($sql);
-            $stmt->execute([':id' => $taskId]);
+            $sql = "UPDATE automation_tasks SET status = 'paused' WHERE id = ?";
+            $db->query($sql, [$taskId]);
             
             $this->sendResponse(['message' => 'Task paused successfully']);
         } catch (Exception $e) {
@@ -895,9 +931,12 @@ class APIRouter {
     private function getScrapingJobs() {
         try {
             $db = DatabaseManager::getInstance();
+            if (!$db->tableExists('scraping_jobs')) {
+                $this->sendResponse(['jobs' => [], 'count' => 0]);
+                return;
+            }
             $sql = "SELECT * FROM scraping_jobs ORDER BY created_at DESC LIMIT 100";
-            $stmt = $db->query($sql);
-            $jobs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $jobs = $db->query($sql);
             
             $this->sendResponse([
                 'jobs' => $jobs,
@@ -911,17 +950,19 @@ class APIRouter {
     private function getScrapingJob($jobId) {
         try {
             $db = DatabaseManager::getInstance();
-            $sql = "SELECT * FROM scraping_jobs WHERE id = :id";
-            $stmt = $db->prepare($sql);
-            $stmt->execute([':id' => $jobId]);
-            $job = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$db->tableExists('scraping_jobs')) {
+                $this->sendResponse(['error' => 'Job not found'], 404);
+                return;
+            }
+            $sql = "SELECT * FROM scraping_jobs WHERE id = ?";
+            $jobs = $db->query($sql, [$jobId]);
             
-            if (!$job) {
+            if (empty($jobs)) {
                 $this->sendResponse(['error' => 'Job not found'], 404);
                 return;
             }
             
-            $this->sendResponse(['job' => $job]);
+            $this->sendResponse(['job' => $jobs[0]]);
         } catch (Exception $e) {
             $this->sendResponse(['error' => $e->getMessage()], 500);
         }
@@ -930,10 +971,12 @@ class APIRouter {
     private function getScrapingResults($jobId) {
         try {
             $db = DatabaseManager::getInstance();
-            $sql = "SELECT * FROM automation_results WHERE task_id = :task_id ORDER BY created_at DESC LIMIT 100";
-            $stmt = $db->prepare($sql);
-            $stmt->execute([':task_id' => $jobId]);
-            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            if (!$db->tableExists('automation_results')) {
+                $this->sendResponse(['results' => [], 'count' => 0]);
+                return;
+            }
+            $sql = "SELECT * FROM automation_results WHERE task_id = ? ORDER BY created_at DESC LIMIT 100";
+            $results = $db->query($sql, [$jobId]);
             
             $this->sendResponse([
                 'results' => $results,
@@ -947,6 +990,13 @@ class APIRouter {
     private function sendResponse($data, $code = 200) {
         http_response_code($code);
         echo json_encode($data, JSON_OPTIONS);
+        exit;
+    }
+    
+    private function streamSessions() {
+        require_once __DIR__ . '/../includes/realtime-multiplexer.php';
+        $multiplexer = new RealtimeMultiplexer();
+        $multiplexer->streamSessions();
         exit;
     }
     

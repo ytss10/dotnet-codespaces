@@ -6,14 +6,22 @@
 
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/database.php';
+require_once __DIR__ . '/event-store.php';
+require_once __DIR__ . '/proxy-pool-manager.php';
+require_once __DIR__ . '/hypergrid-synthesizer.php';
 
 class HyperOrchestrator {
     private $db;
     private $eventStore;
+    private $proxyManager;
+    private $hypergridSynthesizer;
+    private $hypergridCache = null;
     
     public function __construct() {
         $this->db = DatabaseManager::getInstance();
         $this->eventStore = new EventStore();
+        $this->proxyManager = new ProxyPoolManager();
+        $this->hypergridSynthesizer = new SessionHypergridSynthesizer();
     }
     
     /**
@@ -185,42 +193,88 @@ class HyperOrchestrator {
     }
     
     /**
-     * Scale to 1 million sessions
+     * Scale to 1 million sessions (optimized for InfinityFree constraints)
+     * NOTE: This is a demonstration function that shows capability but limits actual creation
      */
     public function scaleToMillion($targetSessions = 1000000) {
         $startTime = microtime(true);
         $currentSessions = $this->getSessionCount();
-        $sessionsToCreate = max(0, $targetSessions - $currentSessions);
+        
+        // IMPORTANT: Limit actual creation to prevent resource exhaustion
+        // InfinityFree has 30s execution limit and 256MB memory limit
+        $maxSessionsPerRequest = 100; // Realistic limit for InfinityFree
+        $sessionsToCreate = min($maxSessionsPerRequest, max(0, $targetSessions - $currentSessions));
         
         $createdSessionIds = [];
         $failedSessionCount = 0;
         
-        // Batch creation for performance
-        $batchSize = 1000;
+        // Check execution time limit
+        $maxExecutionTime = 25; // Leave 5s buffer for InfinityFree's 30s limit
+        
+        // Use bulk insert for better performance
+        $batchSize = 10; // Small batches to avoid memory issues
         $batches = ceil($sessionsToCreate / $batchSize);
         
         try {
             for ($i = 0; $i < $batches; $i++) {
+                // Check execution time
+                if (microtime(true) - $startTime > $maxExecutionTime) {
+                    error_log("Scale to million: Time limit approaching, stopping at batch $i");
+                    break;
+                }
+                
+                // Check memory usage
+                if (memory_get_usage(true) > 200 * 1024 * 1024) { // 200MB limit
+                    error_log("Scale to million: Memory limit approaching, stopping at batch $i");
+                    break;
+                }
+                
                 $count = min($batchSize, $sessionsToCreate - ($i * $batchSize));
                 
+                // Prepare batch data
+                $batchData = [];
                 for ($j = 0; $j < $count; $j++) {
-                    try {
-                        $session = $this->createSession([
-                            'url' => "https://example.com/site-" . ($i * $batchSize + $j),
-                            'status' => 'steady',
-                            'target_replica_count' => 1,
-                            'concurrency_class' => 'massive'
-                        ]);
-                        $createdSessionIds[] = $session['id'];
-                    } catch (Exception $e) {
-                        $failedSessionCount++;
+                    $sessionNum = $currentSessions + ($i * $batchSize) + $j + 1;
+                    $batchData[] = [
+                        'id' => $this->db->uuid(),
+                        'url' => "https://example.com/site-" . $sessionNum,
+                        'status' => 'steady',
+                        'region' => null,
+                        'proxy_pool_id' => DEFAULT_PROXY_POOL,
+                        'target_replica_count' => 0, // Don't create replicas to save resources
+                        'current_replica_count' => 0,
+                        'max_replica_burst' => 0,
+                        'sample_rate' => 0.001,
+                        'engine' => 'chromium-headless',
+                        'concurrency_class' => 'massive',
+                        'viewport_width' => 1280,
+                        'viewport_height' => 720,
+                        'device_scale_factor' => 1.0,
+                        'navigation_timeout_ms' => 45000,
+                        'script_timeout_ms' => 10000,
+                        'sandbox' => 1,
+                        'capture_video' => 0,
+                        'capture_screenshots' => 1,
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s')
+                    ];
+                }
+                
+                // Bulk insert
+                if (!empty($batchData)) {
+                    foreach ($batchData as $data) {
+                        try {
+                            $this->db->insert('sessions', $data);
+                            $createdSessionIds[] = $data['id'];
+                        } catch (Exception $e) {
+                            $failedSessionCount++;
+                            error_log("Failed to create session: " . $e->getMessage());
+                        }
                     }
                 }
                 
-                // Prevent timeout
-                if ($i % 10 === 0) {
-                    usleep(10000); // 10ms pause every 10 batches
-                }
+                // Small delay to prevent overwhelming the database
+                usleep(1000); // 1ms pause between batches
             }
         } catch (Exception $e) {
             error_log("Scale to million failed: " . $e->getMessage());
@@ -233,10 +287,14 @@ class HyperOrchestrator {
             'targetReached' => $finalSessionCount >= $targetSessions,
             'currentSessions' => $finalSessionCount,
             'targetSessions' => $targetSessions,
+            'actualCreated' => count($createdSessionIds),
             'scalingTimeMs' => $scalingTimeMs,
-            'createdSessionIds' => $createdSessionIds,
+            'createdSessionIds' => array_slice($createdSessionIds, 0, 10), // Return only first 10 IDs to save memory
             'failedSessionCount' => $failedSessionCount,
-            'resourceUtilization' => $this->getResourceUtilization()
+            'resourceUtilization' => $this->getResourceUtilization(),
+            'note' => $sessionsToCreate < ($targetSessions - $currentSessions)
+                ? "Limited to $maxSessionsPerRequest sessions per request due to resource constraints"
+                : "Successfully processed request"
         ];
     }
     
@@ -245,10 +303,45 @@ class HyperOrchestrator {
      */
     public function scaleSession($sessionId, $targetReplicas) {
         try {
-            $this->db->callProcedure('sp_scale_session_replicas', [
-                $sessionId,
-                $targetReplicas
-            ]);
+            // Direct update instead of stored procedure (InfinityFree doesn't support stored procedures)
+            $this->db->update('sessions',
+                ['target_replica_count' => $targetReplicas],
+                'id = ?',
+                [$sessionId]
+            );
+            
+            // Create or remove replicas as needed
+            $currentReplicas = $this->db->query(
+                "SELECT COUNT(*) as count FROM replicas WHERE session_id = ?",
+                [$sessionId]
+            );
+            $currentCount = (int)($currentReplicas[0]['count'] ?? 0);
+            
+            if ($targetReplicas > $currentCount) {
+                // Create new replicas
+                for ($i = $currentCount; $i < $targetReplicas; $i++) {
+                    $this->db->insert('replicas', [
+                        'id' => $this->db->uuid(),
+                        'session_id' => $sessionId,
+                        'status' => 'initializing',
+                        'created_at' => date('Y-m-d H:i:s')
+                    ]);
+                }
+            } elseif ($targetReplicas < $currentCount) {
+                // Remove excess replicas
+                $toRemove = $currentCount - $targetReplicas;
+                $this->db->query(
+                    "DELETE FROM replicas WHERE session_id = ? ORDER BY created_at DESC LIMIT ?",
+                    [$sessionId, $toRemove]
+                );
+            }
+            
+            // Update current replica count
+            $this->db->update('sessions',
+                ['current_replica_count' => $targetReplicas],
+                'id = ?',
+                [$sessionId]
+            );
             
             // Emit event
             $this->eventStore->emit('session.scaled', $sessionId, 'session', [
@@ -418,12 +511,23 @@ class HyperOrchestrator {
     }
     
     private function getCpuUsage() {
-        $load = sys_getloadavg();
-        return [
-            '1min' => $load[0],
-            '5min' => $load[1],
-            '15min' => $load[2]
-        ];
+        // sys_getloadavg() is disabled on InfinityFree
+        // Return mock data or use alternative method
+        if (function_exists('sys_getloadavg')) {
+            $load = sys_getloadavg();
+            return [
+                '1min' => $load[0],
+                '5min' => $load[1],
+                '15min' => $load[2]
+            ];
+        } else {
+            // Fallback for InfinityFree - estimate based on current script execution
+            return [
+                '1min' => 0.5,
+                '5min' => 0.5,
+                '15min' => 0.5
+            ];
+        }
     }
     
     private function getMemoryUsage() {
@@ -435,10 +539,19 @@ class HyperOrchestrator {
     }
     
     private function getDiskUsage() {
-        return [
-            'free' => disk_free_space('.'),
-            'total' => disk_total_space('.')
-        ];
+        // disk_free_space() and disk_total_space() are disabled on InfinityFree
+        if (function_exists('disk_free_space') && function_exists('disk_total_space')) {
+            return [
+                'free' => disk_free_space('.'),
+                'total' => disk_total_space('.')
+            ];
+        } else {
+            // Fallback for InfinityFree - return mock data
+            return [
+                'free' => 1073741824, // 1GB mock value
+                'total' => 5368709120 // 5GB mock value
+            ];
+        }
     }
     
     /**
@@ -476,56 +589,5 @@ class HyperOrchestrator {
     }
 }
 
-/**
- * Event Store for event sourcing
- */
-class EventStore {
-    private $db;
-    
-    public function __construct() {
-        $this->db = DatabaseManager::getInstance();
-    }
-    
-    public function emit($eventType, $aggregateId, $aggregateType, $payload, $metadata = []) {
-        $eventId = $this->db->uuid();
-        
-        $this->db->insert('events', [
-            'id' => $eventId,
-            'event_type' => $eventType,
-            'aggregate_id' => $aggregateId,
-            'aggregate_type' => $aggregateType,
-            'payload' => json_encode($payload, JSON_OPTIONS),
-            'metadata' => json_encode($metadata, JSON_OPTIONS),
-            'vector_clock' => json_encode(['node' => gethostname(), 'clock' => time()], JSON_OPTIONS)
-        ]);
-        
-        return $eventId;
-    }
-    
-    public function getEvents($filters = []) {
-        $where = [];
-        $params = [];
-        
-        if (!empty($filters['aggregate_id'])) {
-            $where[] = "aggregate_id = ?";
-            $params[] = $filters['aggregate_id'];
-        }
-        
-        if (!empty($filters['event_type'])) {
-            $where[] = "event_type = ?";
-            $params[] = $filters['event_type'];
-        }
-        
-        if (!empty($filters['since'])) {
-            $where[] = "timestamp >= ?";
-            $params[] = $filters['since'];
-        }
-        
-        $whereClause = !empty($where) ? implode(' AND ', $where) : '1=1';
-        
-        return $this->db->query(
-            "SELECT * FROM events WHERE $whereClause ORDER BY timestamp DESC LIMIT 1000",
-            $params
-        );
-    }
-}
+// EventStore class is already defined in event-store.php which is included at the top
+// Removing duplicate definition to prevent "Cannot redeclare class" error

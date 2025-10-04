@@ -1,30 +1,39 @@
-# Dependencies
-node_modules
+# PHP-specific ignores
+vendor/
+composer.lock
+*.log
 
-# Build outputs
-dist
-build
-*.tsbuildinfo
-.tsbuildinfo
+# Environment files
+.env
+.env.local
+.env.production
 
-# IDE
+# IDE files
 .vscode/*
 !.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-.idea
+.idea/
+*.swp
+*.swo
+*~
 
-# OS
+# OS files
 .DS_Store
 Thumbs.db
 
-# Logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# Temporary files
+*.tmp
+*.cache
+*.bak
+*.backup
 
-# Environment
-.env
-.env.local
+# Database dumps
+*.sql.gz
+*.sql.zip
+
+# Upload directories
+uploads/
+temp/
+cache/
+
+# Session files
+sessions/

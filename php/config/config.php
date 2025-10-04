@@ -16,6 +16,8 @@ define('DB_COLLATE', 'utf8mb4_unicode_ci');
 define('APP_ENV', getenv('APP_ENV') ?: 'production');
 define('APP_DEBUG', getenv('APP_DEBUG') === 'true' ? true : false);
 define('APP_URL', getenv('APP_URL') ?: 'http://localhost');
+define('APP_ROOT', dirname(__DIR__));
+define('APP_LOG_PATH', dirname(__DIR__) . '/logs');
 
 // Performance configuration
 define('MAX_SESSIONS', 1000000);
@@ -65,9 +67,14 @@ if (APP_DEBUG) {
     ini_set('display_errors', 0);
 }
 
-// Set memory limit for large operations
-ini_set('memory_limit', '512M');
-ini_set('max_execution_time', '60');
+// Set memory limit for large operations (InfinityFree compatible)
+try {
+    @ini_set('memory_limit', '512M');
+    @ini_set('max_execution_time', '60');
+} catch (Exception $e) {
+    // InfinityFree may not allow ini_set, continue without it
+    error_log('Unable to set ini settings: ' . $e->getMessage());
+}
 
 // JSON encoding options
 define('JSON_OPTIONS', JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_NUMERIC_CHECK);
